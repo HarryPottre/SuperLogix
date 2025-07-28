@@ -169,6 +169,13 @@ class AdminPanel {
         if (editForm) {
             editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
         }
+
+        // Filter event listeners
+        document.getElementById('searchInput')?.addEventListener('input', () => this.applyFilters());
+        document.getElementById('dateFilter')?.addEventListener('change', () => this.applyFilters());
+        document.getElementById('stageFilter')?.addEventListener('change', () => this.applyFilters());
+        document.getElementById('paymentStatusFilter')?.addEventListener('change', () => this.applyFilters());
+        document.getElementById('applyFiltersButton')?.addEventListener('click', () => this.applyFilters());
     }
 
     setupZentraPayConfig() {
@@ -2277,12 +2284,14 @@ class AdminPanel {
         const searchInput = document.getElementById('searchInput');
         const dateFilter = document.getElementById('dateFilter');
         const stageFilter = document.getElementById('stageFilter');
+        const paymentStatusFilter = document.getElementById('paymentStatusFilter');
         
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
         const dateValue = dateFilter ? dateFilter.value : '';
         const stageValue = stageFilter ? stageFilter.value : 'all';
+        const paymentStatusValue = paymentStatusFilter ? paymentStatusFilter.value : 'all';
         
-        console.log('Filtros aplicados:', { searchTerm, dateValue, stageValue });
+        console.log('Filtros aplicados:', { searchTerm, dateValue, stageValue, paymentStatusValue });
         
         this.filteredLeads = this.leads.filter(lead => {
             // Filtro por nome ou CPF
@@ -2311,7 +2320,10 @@ class AdminPanel {
                 }
             }
             
-            return true;
+            // Filtro de status de pagamento
+            const matchesPaymentStatus = this.checkPaymentStatusFilter(lead, paymentStatusValue);
+            
+            return matchesPaymentStatus;
         });
         
         console.log(`Filtros aplicados: ${this.filteredLeads.length} de ${this.leads.length} leads`);
@@ -2324,6 +2336,39 @@ class AdminPanel {
         this.updateLeadsCount();
         
         this.showNotification(`Filtros aplicados: ${this.filteredLeads.length} leads encontrados`, "info");
+    }
+
+    checkPaymentStatusFilter(lead, filter) {
+        switch (filter) {
+            case 'all':
+                return true;
+            case 'pending_payment':
+                // Leads que estão em etapas que exigem pagamento
+                return this.isAwaitingPayment(lead);
+            case 'paid':
+                return lead.status_pagamento === 'pago';
+            case 'pending':
+                return lead.status_pagamento === 'pendente' || !lead.status_pagamento;
+            default:
+                return true;
+        }
+    }
+
+    isAwaitingPayment(lead) {
+        // Etapa 11: Alfândega (aguardando taxa alfandegária)
+        if (lead.etapa_atual === 11 && lead.status_pagamento !== 'pago') {
+            return true;
+        }
+        
+        // Etapas 16, 106, 116, 126, etc.: Tentativas de entrega (aguardando taxa de reagendamento)
+        if (lead.etapa_atual && (
+            lead.etapa_atual === 16 || 
+            lead.etapa_atual.toString().endsWith('6') && lead.etapa_atual > 100
+        )) {
+            return true;
+        }
+        
+        return false;
     }
 
     // Lidar com ações do sistema (botões de controle)
@@ -2512,9 +2557,10 @@ class AdminPanel {
                     <td>R$ ${(lead.valor_total || 0).toFixed(2)}</td>
                     <td>${this.formatDate(lead.created_at)}</td>
                     <td>
-                        <span class="stage-badge ${this.getStageClass(lead.etapa_atual)}">
-                            ${lead.etapa_atual || 1}
+                        <span class="stage-badge ${this.getStageStatusClass(lead)}">
+                            ${this.getStageDisplayName(lead.etapa_atual)}
                         </span>
+                        ${this.isAwaitingPayment(lead) ? '<span class="status-indicator pending-payment" style="margin-left: 5px; font-size: 0.7rem;">💳 Aguardando Pagamento</span>' : ''}
                     </td>
                     <td>${this.formatDate(lead.updated_at)}</td>
                     <td>
@@ -2539,6 +2585,72 @@ class AdminPanel {
 
         tableBody.innerHTML = tableHTML;
         this.updateSelectedCount();
+    }
+
+    getStageStatusClass(lead) {
+        if (this.isAwaitingPayment(lead)) {
+            return 'pending';
+        } else if (lead.etapa_atual >= 12) {
+            return 'completed';
+        } else {
+            return 'pending';
+        }
+    }
+
+    getStageDisplayName(stage) {
+        const stageNames = {
+            1: '1 - Pedido criado',
+            2: '2 - Preparando para envio',
+            3: '3 - Vendedor enviou pedido',
+            4: '4 - Centro triagem Shenzhen',
+            5: '5 - Centro logístico Shenzhen',
+            6: '6 - Trânsito internacional',
+            7: '7 - Liberado exportação',
+            8: '8 - Saiu origem Shenzhen',
+            9: '9 - Chegou no Brasil',
+            10: '10 - Trânsito Curitiba/PR',
+            11: '11 - Alfândega importação',
+            12: '12 - Liberado alfândega',
+            13: '13 - Sairá para entrega',
+            14: '14 - Em trânsito entrega',
+            15: '15 - Rota de entrega',
+            16: '16 - Tentativa entrega',
+            // Etapas de ciclos de entrega (100+)
+            101: 'Sairá para entrega (2º ciclo)',
+            102: 'Em trânsito (2º ciclo)',
+            103: 'Em trânsito (2º ciclo)',
+            104: 'Em rota (2º ciclo)',
+            105: '2ª tentativa de entrega',
+            111: 'Sairá para entrega (3º ciclo)',
+            112: 'Em trânsito (3º ciclo)',
+            113: 'Em trânsito (3º ciclo)',
+            114: 'Em rota (3º ciclo)',
+            115: '3ª tentativa de entrega',
+            121: 'Sairá para entrega (4º ciclo)',
+            122: 'Em trânsito (4º ciclo)',
+            123: 'Em trânsito (4º ciclo)',
+            124: 'Em rota (4º ciclo)',
+            125: '1ª tentativa de entrega (loop)'
+        };
+        
+        // Para etapas de ciclo de entrega (100+)
+        if (stage > 100) {
+            const cycleNumber = Math.floor((stage - 100) / 10) + 2;
+            const stepInCycle = (stage - 100) % 10;
+            
+            switch (stepInCycle) {
+                case 1: return `Sairá para entrega (${cycleNumber}º ciclo)`;
+                case 2: return `Em trânsito (${cycleNumber}º ciclo) - 1`;
+                case 3: return `Em trânsito (${cycleNumber}º ciclo) - 2`;
+                case 4: return `Em rota (${cycleNumber}º ciclo)`;
+                case 5: 
+                    const attemptNumber = cycleNumber > 4 ? ((cycleNumber - 2) % 3) + 1 : cycleNumber;
+                    return `${attemptNumber}ª tentativa de entrega`;
+                default: return `Etapa ${stage}`;
+            }
+        }
+        
+        return stageNames[stage] || `Etapa ${stage}`;
     }
 
     formatCPF(cpf) {
@@ -2607,9 +2719,13 @@ class AdminPanel {
     }
 
     updateLeadsCount() {
-        const leadsCount = document.getElementById('leadsCount');
-        if (leadsCount) {
-            leadsCount.textContent = `${this.filteredLeads.length} leads`;
+        const countElement = document.getElementById('leadsCount');
+        if (countElement) {
+            const awaitingPayment = this.filteredLeads.filter(lead => this.isAwaitingPayment(lead)).length;
+            countElement.innerHTML = `
+                ${this.filteredLeads.length} leads
+                ${awaitingPayment > 0 ? `<span style="color: #f39c12; margin-left: 10px;">💳 ${awaitingPayment} aguardando pagamento</span>` : ''}
+            `;
         }
     }
 

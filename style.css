@@ -2567,6 +2567,17 @@ body {
             color: #856404;
         }
 
+.status-indicator.pending-payment {
+    background: #fff3cd;
+    color: #856404;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
         .mass-actions-container {
             background: white;
             padding: 25px;
