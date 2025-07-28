@@ -1625,6 +1625,291 @@ class AdminPanel {
         this.enhancedBulkImport.clearCache();
     }
 
+    // Processar dados para pré-visualização
+    previewBulkData() {
+        const textarea = document.getElementById('bulkDataTextarea');
+        const previewSection = document.getElementById('bulkPreviewSection');
+        const previewContainer = document.getElementById('bulkPreviewContainer');
+        const confirmButton = document.getElementById('confirmBulkImportButton');
+        const previewSummary = document.getElementById('previewSummary');
+        
+        if (!textarea || !previewSection || !previewContainer) {
+            console.error('❌ Elementos de pré-visualização não encontrados');
+            return;
+        }
+        
+        const rawData = textarea.value.trim();
+        
+        // Verificar se há dados (corrigido para detectar dados reais)
+        if (!rawData || rawData.length < 10) {
+            alert('❌ Nenhum dado foi colado para análise. Cole os dados da planilha no campo de texto.');
+            return;
+        }
+        
+        console.log('📊 Iniciando análise dos dados colados...');
+        console.log('📋 Dados brutos (primeiros 200 chars):', rawData.substring(0, 200));
+        
+        try {
+            // Parse dos dados com lógica corrigida
+            const result = this.parseDataForPreview(rawData);
+            
+            if (!result || !result.leads || result.leads.length === 0) {
+                if (result && result.parseErrors && result.parseErrors.length > 0) {
+                    console.log('⚠️ Erros encontrados:', result.parseErrors);
+                    alert(`⚠️ Dados encontrados mas com problemas:\n${result.parseErrors.slice(0, 3).map(e => `Linha ${e.line}: ${e.error}`).join('\n')}\n${result.parseErrors.length > 3 ? `... e mais ${result.parseErrors.length - 3} erros` : ''}`);
+                } else {
+                    alert('❌ Nenhum dado válido encontrado. Verifique o formato dos dados colados.');
+                }
+                return;
+            }
+            
+            console.log(`✅ Análise concluída: ${result.leads.length} leads válidos encontrados`);
+            
+            // Exibir pré-visualização
+            this.displayBulkPreview(result);
+            
+            // Mostrar seção de pré-visualização
+            previewSection.style.display = 'block';
+            
+            // Habilitar botão de confirmação
+            if (confirmButton) {
+                confirmButton.style.display = 'inline-block';
+            }
+            
+            // Atualizar resumo
+            if (previewSummary) {
+                previewSummary.textContent = `${result.leads.length} registros válidos encontrados`;
+                if (result.parseErrors && result.parseErrors.length > 0) {
+                    previewSummary.textContent += ` | ${result.parseErrors.length} erros`;
+                }
+            }
+            
+            // Scroll para a pré-visualização
+            previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+        } catch (error) {
+            console.error('❌ Erro na análise dos dados:', error);
+            alert(`❌ Erro ao analisar dados: ${error.message}`);
+        }
+    }
+    
+    // Função específica para parse de pré-visualização (corrigida)
+    parseDataForPreview(rawData) {
+        console.log('📊 Iniciando parse para pré-visualização...');
+        
+        const lines = rawData.trim().split('\n').filter(line => line.trim());
+        console.log(`📋 Total de linhas encontradas: ${lines.length}`);
+        
+        if (lines.length === 0) {
+            return {
+                leads: [],
+                parseErrors: [{ line: 0, error: 'Nenhuma linha de dados encontrada' }]
+            };
+        }
+        
+        const leads = [];
+        const parseErrors = [];
+        const duplicatesInList = new Set();
+        
+        // Obter leads existentes no banco para verificar duplicatas
+        const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+        const existingCPFs = new Set(existingLeads.map(lead => 
+            lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : ''
+        ));
+        
+        console.log(`🗄️ Leads existentes no banco: ${existingLeads.length}`);
+        
+        for (let i = 0; i < lines.length; i++) {
+            try {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                console.log(`📝 Processando linha ${i + 1}: ${line.substring(0, 100)}...`);
+                
+                // Dividir por TAB primeiro, depois por espaços múltiplos se necessário
+                let fields = line.split('\t');
+                
+                // Se não há TABs suficientes, tentar dividir por espaços múltiplos
+                if (fields.length < 14) {
+                    fields = line.split(/\s{2,}/).filter(field => field.trim());
+                }
+                
+                // Se ainda não há campos suficientes, tentar dividir por espaço simples
+                if (fields.length < 14) {
+                    fields = line.split(/\s+/).filter(field => field.trim());
+                }
+                
+                // Limpar campos
+                fields = fields.map(field => field.trim());
+                
+                console.log(`📊 Linha ${i + 1}: ${fields.length} campos encontrados`);
+                
+                if (fields.length < 4) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: `Poucos campos: ${fields.length} campos encontrados, mínimo 4 necessários (Nome, Email, Telefone, CPF)`
+                    });
+                    continue;
+                }
+                
+                // Mapear campos (ordem: Nome, Email, Telefone, Documento, Produto, Valor, Endereço, Número, Complemento, Bairro, CEP, Cidade, Estado, País)
+                const [
+                    nomeCliente = '',
+                    emailCliente = '', 
+                    telefoneCliente = '',
+                    documento = '',
+                    produto = 'Kit 262 Cores Canetinhas Coloridas Edição Especial Com Ponta Dupla',
+                    valorTotalVenda = '47,39',
+                    endereco = '',
+                    numero = '',
+                    complemento = '',
+                    bairro = '',
+                    cep = '',
+                    cidade = '',
+                    estado = '',
+                    pais = 'BR'
+                ] = fields;
+                
+                // Validações básicas
+                const cleanCPF = documento.replace(/[^\d]/g, '');
+                const nomeClean = nomeCliente.toLowerCase().trim();
+                
+                // Verificar campos obrigatórios
+                if (!nomeCliente) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: 'Nome do cliente é obrigatório'
+                    });
+                    continue;
+                }
+                
+                if (!emailCliente || !emailCliente.includes('@')) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: 'Email inválido ou ausente'
+                    });
+                    continue;
+                }
+                
+                if (!telefoneCliente || telefoneCliente.replace(/[^\d]/g, '').length < 10) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: 'Telefone inválido ou ausente'
+                    });
+                    continue;
+                }
+                
+                if (cleanCPF.length !== 11) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: 'CPF deve ter 11 dígitos'
+                    });
+                    continue;
+                }
+                
+                // Verificar duplicatas na lista atual
+                const duplicateKey = `${nomeClean}_${cleanCPF}`;
+                if (duplicatesInList.has(duplicateKey)) {
+                    console.log(`🔄 Duplicado na lista ignorado: ${nomeCliente} - ${cleanCPF}`);
+                    continue;
+                }
+                duplicatesInList.add(duplicateKey);
+                
+                // Verificar duplicatas no banco
+                if (existingCPFs.has(cleanCPF)) {
+                    parseErrors.push({
+                        line: i + 1,
+                        content: line.substring(0, 50) + '...',
+                        error: 'CPF já existe no sistema'
+                    });
+                    continue;
+                }
+                
+                // Processar valor
+                const valorProcessado = this.parseDecimalValue(valorTotalVenda) || 47.39;
+                
+                // Construir endereço completo
+                const enderecoCompleto = this.buildAddressFromFields({
+                    rua: endereco,
+                    numero: numero,
+                    complemento: complemento,
+                    bairro: bairro,
+                    cep: cep,
+                    cidade: cidade,
+                    estado: estado,
+                    pais: pais
+                });
+                
+                // Criar lead para pré-visualização
+                const leadData = {
+                    nome_completo: nomeCliente,
+                    email: emailCliente,
+                    telefone: telefoneCliente,
+                    cpf: cleanCPF,
+                    produto: produto,
+                    valor_total: valorProcessado,
+                    endereco: enderecoCompleto,
+                    meio_pagamento: 'PIX',
+                    origem: 'direto',
+                    etapa_atual: 1,
+                    status_pagamento: 'pendente',
+                    lineNumber: i + 1
+                };
+                
+                leads.push(leadData);
+                console.log(`✅ Lead ${i + 1} processado: ${nomeCliente}`);
+                
+            } catch (error) {
+                console.error(`❌ Erro ao processar linha ${i + 1}:`, error);
+                parseErrors.push({
+                    line: i + 1,
+                    content: lines[i].substring(0, 50) + '...',
+                    error: error.message || 'Erro desconhecido'
+                });
+            }
+        }
+        
+        console.log(`📊 Resultado final: ${leads.length} leads válidos, ${parseErrors.length} erros`);
+        
+        return {
+            leads,
+            parseErrors,
+            duplicatesRemoved: [],
+            databaseDuplicates: parseErrors.filter(e => e.error.includes('já existe'))
+        };
+    }
+    
+    // Função auxiliar para processar valores decimais
+    parseDecimalValue(value) {
+        if (!value) return 0;
+        
+        // Remover espaços e converter vírgula para ponto
+        const cleanValue = value.toString().trim().replace(',', '.');
+        const parsed = parseFloat(cleanValue);
+        
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    // Função auxiliar para construir endereço
+    buildAddressFromFields({ rua, numero, complemento, bairro, cep, cidade, estado, pais }) {
+        const parts = [];
+        
+        if (rua) parts.push(rua);
+        if (numero) parts.push(numero);
+        if (complemento) parts.push(`- ${complemento}`);
+        if (bairro) parts.push(`- ${bairro}`);
+        if (cidade && estado) parts.push(`- ${cidade}/${estado}`);
+        if (cep) parts.push(`- CEP: ${cep}`);
+        if (pais && pais !== 'BR') parts.push(`- ${pais}`);
+        
+        return parts.join(' ') || 'Endereço não informado';
+    }
+
     // Bulk Import Methods
     previewBulkData() {
         const textarea = document.getElementById('bulkDataTextarea');
@@ -1725,6 +2010,93 @@ class AdminPanel {
         
         return address.trim();
     };
+
+    displayBulkPreview(result) {
+        const previewContainer = document.getElementById('bulkPreviewContainer');
+        if (!previewContainer) return;
+        
+        console.log('🎯 Exibindo pré-visualização para', result.leads.length, 'leads');
+        
+        // Criar tabela de pré-visualização
+        let tableHTML = `
+            <div style="max-height: 400px; overflow: auto; border: 1px solid #e1e5e9;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                    <thead style="position: sticky; top: 0; background: #345C7A; color: white; z-index: 10;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Linha</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Nome</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Email</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Telefone</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">CPF</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Produto</th>
+                            <th style="padding: 8px; text-align: left; border-right: 1px solid rgba(255,255,255,0.2);">Valor</th>
+                            <th style="padding: 8px; text-align: left;">Endereço</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        // Adicionar leads válidos
+        result.leads.forEach((lead, index) => {
+            const rowClass = index % 2 === 0 ? 'background: #f8f9fa;' : 'background: white;';
+            tableHTML += `
+                <tr style="${rowClass}">
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; font-weight: 600; color: #345C7A;">${lead.lineNumber}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${lead.nome_completo}">${lead.nome_completo}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${lead.email}">${lead.email}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9;">${lead.telefone}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; font-family: monospace;">${this.formatCPF(lead.cpf)}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${lead.produto}">${lead.produto.substring(0, 30)}${lead.produto.length > 30 ? '...' : ''}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; font-weight: 600; color: #27ae60;">R$ ${lead.valor_total.toFixed(2)}</td>
+                    <td style="padding: 6px; border-bottom: 1px solid #e1e5e9; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${lead.endereco}">${lead.endereco.substring(0, 40)}${lead.endereco.length > 40 ? '...' : ''}</td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        // Adicionar seção de erros se houver
+        if (result.parseErrors && result.parseErrors.length > 0) {
+            tableHTML += `
+                <div style="margin-top: 20px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 15px;">
+                    <h5 style="color: #721c24; margin-bottom: 10px;">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Erros Encontrados (${result.parseErrors.length})
+                    </h5>
+                    <div style="max-height: 150px; overflow-y: auto;">
+            `;
+            
+            result.parseErrors.slice(0, 10).forEach(error => {
+                tableHTML += `
+                    <div style="margin-bottom: 8px; padding: 6px; background: #fdf2f2; border-radius: 4px; font-size: 0.8rem;">
+                        <strong>Linha ${error.line}:</strong> ${error.error}
+                        <br><small style="color: #666;">${error.content}</small>
+                    </div>
+                `;
+            });
+            
+            if (result.parseErrors.length > 10) {
+                tableHTML += `
+                    <div style="text-align: center; padding: 8px; color: #666; font-style: italic;">
+                        ... e mais ${result.parseErrors.length - 10} erros
+                    </div>
+                `;
+            }
+            
+            tableHTML += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        previewContainer.innerHTML = tableHTML;
+        
+        console.log('✅ Pré-visualização exibida com sucesso');
+    }
 
     displayBulkPreview() {
         const previewSection = document.getElementById('bulkPreviewSection');
