@@ -5,7 +5,9 @@
 
 /* Botão de reenvio de entrega com visual igual ao "Liberar Objeto" */
 .delivery-retry-btn {
-    background: rgba(30, 74, 107, 0.9) !important;
+    background: #1e4a6be6 !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
     backdrop-filter: blur(15px) !important;
     -webkit-backdrop-filter: blur(15px) !important;
     color: white !important;
@@ -27,8 +29,9 @@
 }
 
 .delivery-retry-btn:hover {
-    background: rgba(30, 74, 107, 1) !important;
+    background: #1e4a6b !important;
     transform: translateY(-2px) !important;
+    box-shadow: 0 12px 40px rgba(30, 74, 107, 0.4) !important;
     box-shadow: 0 12px 40px rgba(30, 74, 107, 0.4) !important;
     animation-play-state: paused !important;
 }

