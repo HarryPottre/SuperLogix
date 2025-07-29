@@ -13,6 +13,11 @@ class AdminPanel {
         this.currentPage = 1;
         this.leadsPerPage = 20;
         this.selectedLeads = new Set();
+        
+        // Sistema de Debug
+        this.debugLogs = [];
+        this.maxDebugLogs = 100;
+        this.debugVisible = false;
         this.systemMode = 'auto';
         this.autoUpdateInterval = null;
         this.bulkImportData = [];
@@ -29,6 +34,7 @@ class AdminPanel {
             await this.loadLeads();
             this.startAutoUpdate();
             this.setupMassSelectionControls();
+            this.setupDebugSystem();
             console.log('✅ AdminPanel configurado com sucesso');
         } catch (error) {
             console.error('❌ Erro na inicialização do AdminPanel:', error);
@@ -154,6 +160,385 @@ class AdminPanel {
                 this.deselectAllLeads();
             });
         }
+    }
+    
+    // ===== SISTEMA DE DEBUG =====
+    setupDebugSystem() {
+        console.log('🐛 Configurando sistema de debug...');
+        
+        // Criar botão de debug flutuante
+        this.createDebugButton();
+        
+        // Criar painel de debug
+        this.createDebugPanel();
+        
+        // Interceptar erros globais
+        this.setupErrorInterception();
+        
+        // Log inicial
+        this.addDebugLog('Sistema de debug inicializado', 'Sistema', 'info');
+        
+        console.log('✅ Sistema de debug configurado');
+    }
+    
+    createDebugButton() {
+        const debugButton = document.createElement('div');
+        debugButton.id = 'debugButton';
+        debugButton.innerHTML = `
+            <i class="fas fa-bug"></i>
+            <span id="debugCounter" class="debug-counter">0</span>
+        `;
+        debugButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #6c757d;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            border: 2px solid #495057;
+        `;
+        
+        debugButton.addEventListener('click', () => {
+            this.toggleDebugPanel();
+        });
+        
+        debugButton.addEventListener('mouseenter', function() {
+            this.style.background = '#495057';
+            this.style.transform = 'scale(1.1)';
+        });
+        
+        debugButton.addEventListener('mouseleave', function() {
+            this.style.background = '#6c757d';
+            this.style.transform = 'scale(1)';
+        });
+        
+        document.body.appendChild(debugButton);
+    }
+    
+    createDebugPanel() {
+        const debugPanel = document.createElement('div');
+        debugPanel.id = 'debugPanel';
+        debugPanel.style.cssText = `
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #2c3e50;
+            color: white;
+            z-index: 9998;
+            transition: right 0.3s ease;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Courier New', monospace;
+        `;
+        
+        debugPanel.innerHTML = `
+            <div style="
+                padding: 20px;
+                background: #34495e;
+                border-bottom: 1px solid #4a5f7a;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <h3 style="margin: 0; color: #ecf0f1;">
+                    <i class="fas fa-bug"></i> Debug Console
+                </h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="clearDebugButton" style="
+                        background: #e74c3c;
+                        color: white;
+                        border: none;
+                        padding: 6px 12px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    ">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
+                    <button id="closeDebugButton" style="
+                        background: #95a5a6;
+                        color: white;
+                        border: none;
+                        padding: 6px 12px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    ">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="
+                padding: 15px;
+                background: #2c3e50;
+                border-bottom: 1px solid #4a5f7a;
+                font-size: 12px;
+            ">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Total de logs: <span id="totalLogsCount">0</span></span>
+                    <span>Erros: <span id="errorLogsCount" style="color: #e74c3c;">0</span></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                        <input type="checkbox" id="showInfoLogs" checked> Info
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                        <input type="checkbox" id="showWarningLogs" checked> Avisos
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                        <input type="checkbox" id="showErrorLogs" checked> Erros
+                    </label>
+                </div>
+            </div>
+            
+            <div id="debugLogContainer" style="
+                flex: 1;
+                overflow-y: auto;
+                padding: 10px;
+                font-size: 11px;
+                line-height: 1.4;
+            ">
+                <!-- Logs serão inseridos aqui -->
+            </div>
+        `;
+        
+        document.body.appendChild(debugPanel);
+        
+        // Configurar eventos
+        document.getElementById('closeDebugButton').addEventListener('click', () => {
+            this.toggleDebugPanel();
+        });
+        
+        document.getElementById('clearDebugButton').addEventListener('click', () => {
+            this.clearDebugLogs();
+        });
+        
+        // Filtros de log
+        ['showInfoLogs', 'showWarningLogs', 'showErrorLogs'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                this.updateDebugDisplay();
+            });
+        });
+    }
+    
+    setupErrorInterception() {
+        // Interceptar erros JavaScript globais
+        window.addEventListener('error', (event) => {
+            this.addDebugLog(
+                `Erro JavaScript: ${event.message}`,
+                `${event.filename}:${event.lineno}`,
+                'error'
+            );
+        });
+        
+        // Interceptar promessas rejeitadas
+        window.addEventListener('unhandledrejection', (event) => {
+            this.addDebugLog(
+                `Promise rejeitada: ${event.reason}`,
+                'Promise',
+                'error'
+            );
+        });
+        
+        // Interceptar console.error (opcional)
+        const originalConsoleError = console.error;
+        console.error = (...args) => {
+            this.addDebugLog(
+                args.join(' '),
+                'Console',
+                'error'
+            );
+            originalConsoleError.apply(console, args);
+        };
+    }
+    
+    addDebugLog(message, source, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3
+        });
+        
+        const logEntry = {
+            id: Date.now() + Math.random(),
+            timestamp,
+            message,
+            source,
+            type,
+            fullTimestamp: new Date().toISOString()
+        };
+        
+        this.debugLogs.unshift(logEntry);
+        
+        // Limitar número de logs
+        if (this.debugLogs.length > this.maxDebugLogs) {
+            this.debugLogs = this.debugLogs.slice(0, this.maxDebugLogs);
+        }
+        
+        // Atualizar contador no botão
+        this.updateDebugCounter();
+        
+        // Atualizar display se painel estiver aberto
+        if (this.debugVisible) {
+            this.updateDebugDisplay();
+        }
+        
+        // Log no console para desenvolvimento
+        console.log(`🐛 [${type.toUpperCase()}] ${source}: ${message}`);
+    }
+    
+    updateDebugCounter() {
+        const counter = document.getElementById('debugCounter');
+        const button = document.getElementById('debugButton');
+        
+        if (counter && button) {
+            const errorCount = this.debugLogs.filter(log => log.type === 'error').length;
+            
+            if (errorCount > 0) {
+                counter.textContent = errorCount;
+                counter.style.cssText = `
+                    position: absolute;
+                    top: -5px;
+                    right: -5px;
+                    background: #e74c3c;
+                    color: white;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    font-size: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                `;
+                button.style.background = '#e74c3c';
+            } else {
+                counter.textContent = this.debugLogs.length;
+                counter.style.display = this.debugLogs.length > 0 ? 'flex' : 'none';
+                button.style.background = '#6c757d';
+            }
+        }
+    }
+    
+    updateDebugDisplay() {
+        const container = document.getElementById('debugLogContainer');
+        const totalCount = document.getElementById('totalLogsCount');
+        const errorCount = document.getElementById('errorLogsCount');
+        
+        if (!container) return;
+        
+        // Obter filtros ativos
+        const showInfo = document.getElementById('showInfoLogs')?.checked;
+        const showWarning = document.getElementById('showWarningLogs')?.checked;
+        const showError = document.getElementById('showErrorLogs')?.checked;
+        
+        // Filtrar logs
+        const filteredLogs = this.debugLogs.filter(log => {
+            if (log.type === 'info' && !showInfo) return false;
+            if (log.type === 'warning' && !showWarning) return false;
+            if (log.type === 'error' && !showError) return false;
+            return true;
+        });
+        
+        // Atualizar contadores
+        if (totalCount) totalCount.textContent = this.debugLogs.length;
+        if (errorCount) errorCount.textContent = this.debugLogs.filter(log => log.type === 'error').length;
+        
+        // Renderizar logs
+        container.innerHTML = filteredLogs.map(log => {
+            const typeColors = {
+                info: '#3498db',
+                warning: '#f39c12',
+                error: '#e74c3c'
+            };
+            
+            const typeIcons = {
+                info: 'fas fa-info-circle',
+                warning: 'fas fa-exclamation-triangle',
+                error: 'fas fa-times-circle'
+            };
+            
+            return `
+                <div style="
+                    margin-bottom: 8px;
+                    padding: 8px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 4px;
+                    border-left: 3px solid ${typeColors[log.type]};
+                ">
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 4px;
+                    ">
+                        <span style="
+                            color: ${typeColors[log.type]};
+                            font-weight: bold;
+                            font-size: 10px;
+                        ">
+                            <i class="${typeIcons[log.type]}"></i>
+                            ${log.type.toUpperCase()}
+                        </span>
+                        <span style="color: #95a5a6; font-size: 10px;">
+                            ${log.timestamp}
+                        </span>
+                    </div>
+                    <div style="color: #ecf0f1; margin-bottom: 2px;">
+                        ${log.message}
+                    </div>
+                    <div style="color: #95a5a6; font-size: 10px;">
+                        Origem: ${log.source}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Scroll para o topo (logs mais recentes)
+        container.scrollTop = 0;
+    }
+    
+    toggleDebugPanel() {
+        const panel = document.getElementById('debugPanel');
+        if (!panel) return;
+        
+        this.debugVisible = !this.debugVisible;
+        
+        if (this.debugVisible) {
+            panel.style.right = '0px';
+            this.updateDebugDisplay();
+        } else {
+            panel.style.right = '-400px';
+        }
+    }
+    
+    clearDebugLogs() {
+        if (confirm('Tem certeza que deseja limpar todos os logs de debug?')) {
+            this.debugLogs = [];
+            this.updateDebugCounter();
+            this.updateDebugDisplay();
+            this.addDebugLog('Logs de debug limpos', 'Sistema', 'info');
+        }
+    }
+    
+    // Método para adicionar logs de debug de forma fácil
+    debug(message, source = 'AdminPanel', type = 'info') {
+        this.addDebugLog(message, source, type);
     }
 
     selectAllVisibleLeads() {
@@ -906,6 +1291,7 @@ class AdminPanel {
                 } catch (error) {
                     console.error(`❌ Erro ao importar lead ${i + 1}:`, error);
                     results.errors++;
+                    this.debug(`Erro ao importar dados em massa: ${error.message}`, 'confirmBulkImport', 'error');
                 }
 
                 // Atualizar progresso
@@ -923,6 +1309,7 @@ class AdminPanel {
         } catch (error) {
             console.error('💥 Erro crítico na importação:', error);
             this.showError(`Erro na importação: ${error.message}`);
+            this.debug(`Erro ao importar dados em massa: ${error.message}`, 'confirmBulkImport', 'error');
         } finally {
             this.isImporting = false;
         }
@@ -1589,15 +1976,416 @@ class AdminPanel {
     }
 
     async nextStage(leadId) {
-        // Implementar próxima etapa
+        this.debug(`Tentando avançar etapa do lead: ${leadId}`, 'nextStage', 'info');
+        
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const leadIndex = leads.findIndex(lead => lead.id === leadId);
+            
+            if (leadIndex === -1) {
+                this.debug(`Lead não encontrado: ${leadId}`, 'nextStage', 'error');
+                throw new Error('Lead não encontrado');
+            }
+
+            const currentStage = leads[leadIndex].etapa_atual || 1;
+            if (currentStage < 16) {
+                leads[leadIndex].etapa_atual = currentStage + 1;
+                leads[leadIndex].updated_at = new Date().toISOString();
+            }
+
+            localStorage.setItem('leads', JSON.stringify(leads));
+            this.refreshLeads();
+            this.debug(`Etapa avançada com sucesso para lead ${leadId}`, 'nextStage', 'info');
+        } catch (error) {
+            this.debug(`Erro ao avançar etapa: ${error.message}`, 'nextStage', 'error');
+            console.error('Erro ao avançar etapa:', error);
+            alert('Erro ao avançar etapa: ' + error.message);
+        }
     }
 
     async prevStage(leadId) {
-        // Implementar etapa anterior
+        this.debug(`Tentando retroceder etapa do lead: ${leadId}`, 'prevStage', 'info');
+        
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const leadIndex = leads.findIndex(lead => lead.id === leadId);
+            
+            if (leadIndex === -1) {
+                this.debug(`Lead não encontrado: ${leadId}`, 'prevStage', 'error');
+                throw new Error('Lead não encontrado');
+            }
+
+            const currentStage = leads[leadIndex].etapa_atual || 1;
+            if (currentStage > 1) {
+                leads[leadIndex].etapa_atual = currentStage - 1;
+                leads[leadIndex].updated_at = new Date().toISOString();
+            }
+
+            localStorage.setItem('leads', JSON.stringify(leads));
+            this.refreshLeads();
+            this.debug(`Etapa retrocedida com sucesso para lead ${leadId}`, 'prevStage', 'info');
+        } catch (error) {
+            this.debug(`Erro ao retroceder etapa: ${error.message}`, 'prevStage', 'error');
+            console.error('Erro ao retroceder etapa:', error);
+            alert('Erro ao retroceder etapa: ' + error.message);
+        }
     }
 
     async deleteLead(leadId) {
-        // Implementar exclusão de lead
+        this.debug(`Tentando excluir lead: ${leadId}`, 'deleteLead', 'info');
+        
+        if (!confirm('Tem certeza que deseja excluir este lead?')) {
+            this.debug(`Exclusão cancelada pelo usuário: ${leadId}`, 'deleteLead', 'info');
+            return;
+        }
+
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const filteredLeads = leads.filter(lead => lead.id !== leadId);
+            
+            localStorage.setItem('leads', JSON.stringify(filteredLeads));
+            this.refreshLeads();
+            this.debug(`Lead excluído com sucesso: ${leadId}`, 'deleteLead', 'info');
+        } catch (error) {
+            this.debug(`Erro ao excluir lead: ${error.message}`, 'deleteLead', 'error');
+            console.error('Erro ao excluir lead:', error);
+            alert('Erro ao excluir lead: ' + error.message);
+        }
+    }
+
+    async performMassAction(action, selectedIds, targetStage = null) {
+        this.debug(`Iniciando ação em massa: ${action} para ${selectedIds.length} leads`, 'performMassAction', 'info');
+        
+        // Mostrar barra de progresso
+        this.showProgressBar(action, selectedIds.length);
+        
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            let successCount = 0;
+            let errorCount = 0;
+            
+            // Processar leads de forma assíncrona
+            for (let i = 0; i < selectedIds.length; i++) {
+                const leadId = selectedIds[i];
+                
+                try {
+                    // Atualizar progresso
+                    this.updateProgressBar(i + 1, selectedIds.length, action);
+                    
+                    // Pequeno delay para suavizar a interface
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    const leadIndex = leads.findIndex(lead => lead.id === leadId);
+                    
+                    if (leadIndex === -1) {
+                        throw new Error(`Lead ${leadId} não encontrado`);
+                    }
+                    
+                    // Executar ação
+                    switch (action) {
+                        case 'next':
+                            if (leads[leadIndex].etapa_atual < 16) {
+                                leads[leadIndex].etapa_atual++;
+                            }
+                            break;
+                        case 'prev':
+                            if (leads[leadIndex].etapa_atual > 1) {
+                                leads[leadIndex].etapa_atual--;
+                            }
+                            break;
+                        case 'setStage':
+                            if (targetStage) {
+                                leads[leadIndex].etapa_atual = parseInt(targetStage);
+                            }
+                            break;
+                        case 'delete':
+                            leads.splice(leadIndex, 1);
+                            break;
+                    }
+                    
+                    leads[leadIndex] && (leads[leadIndex].updated_at = new Date().toISOString());
+                    successCount++;
+                    
+                } catch (error) {
+                    this.debug(`Erro ao processar lead ${leadId}: ${error.message}`, 'performMassAction', 'error');
+                    errorCount++;
+                }
+            }
+            
+            // Salvar alterações
+            localStorage.setItem('leads', JSON.stringify(leads));
+            
+            // Finalizar progresso
+            this.finishProgressBar(successCount, errorCount);
+            
+            // Atualizar interface
+            this.refreshLeads();
+            this.clearSelectedLeads();
+            
+            this.debug(`Ação em massa concluída: ${successCount} sucessos, ${errorCount} erros`, 'performMassAction', 'info');
+            
+        } catch (error) {
+            this.debug(`Erro na ação em massa: ${error.message}`, 'performMassAction', 'error');
+            this.hideProgressBar();
+            alert('Erro na operação: ' + error.message);
+        }
+    }
+    
+    showProgressBar(action, total) {
+        // Remover barra existente se houver
+        this.hideProgressBar();
+        
+        const actionNames = {
+            next: 'Avançando etapas',
+            prev: 'Retrocedendo etapas', 
+            setStage: 'Definindo etapas',
+            delete: 'Excluindo leads'
+        };
+        
+        const progressBar = document.createElement('div');
+        progressBar.id = 'massActionProgressBar';
+        progressBar.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+            border: 2px solid #345C7A;
+        `;
+        
+        progressBar.innerHTML = `
+            <div style="
+                padding: 15px 20px;
+                border-bottom: 1px solid #e9ecef;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-cog fa-spin" style="color: #345C7A;"></i>
+                    <span style="font-weight: 600; color: #345C7A;">
+                        ${actionNames[action] || 'Processando'}...
+                    </span>
+                </div>
+                <button id="cancelMassActionBtn" style="
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                ">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div style="padding: 15px 20px;">
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                ">
+                    <span id="progressText" style="font-size: 14px; color: #666;">
+                        0 de ${total} concluídos
+                    </span>
+                    <span id="progressPercent" style="font-size: 14px; font-weight: 600; color: #345C7A;">
+                        0%
+                    </span>
+                </div>
+                
+                <div style="
+                    width: 100%;
+                    height: 8px;
+                    background: #e9ecef;
+                    border-radius: 4px;
+                    overflow: hidden;
+                ">
+                    <div id="progressFill" style="
+                        width: 0%;
+                        height: 100%;
+                        background: linear-gradient(45deg, #345C7A, #2c4a63);
+                        transition: width 0.3s ease;
+                        border-radius: 4px;
+                    "></div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(progressBar);
+        
+        // Configurar botão cancelar
+        document.getElementById('cancelMassActionBtn')?.addEventListener('click', () => {
+            this.cancelMassAction = true;
+            this.hideProgressBar();
+        });
+        
+        // Adicionar CSS de animação se não existir
+        if (!document.getElementById('progressAnimations')) {
+            const style = document.createElement('style');
+            style.id = 'progressAnimations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+                @keyframes successPulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    updateProgressBar(current, total, action) {
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressFill = document.getElementById('progressFill');
+        
+        if (progressText && progressPercent && progressFill) {
+            const percentage = Math.round((current / total) * 100);
+            
+            progressText.textContent = `${current} de ${total} concluídos`;
+            progressPercent.textContent = `${percentage}%`;
+            progressFill.style.width = `${percentage}%`;
+        }
+    }
+    
+    finishProgressBar(successCount, errorCount) {
+        const progressBar = document.getElementById('massActionProgressBar');
+        if (!progressBar) return;
+        
+        // Mostrar resultado final
+        progressBar.innerHTML = `
+            <div style="
+                padding: 20px;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            ">
+                <i class="fas fa-check-circle" style="
+                    font-size: 32px;
+                    color: #27ae60;
+                    animation: successPulse 0.6s ease;
+                "></i>
+                <div style="font-weight: 600; color: #27ae60; font-size: 16px;">
+                    Operação Concluída!
+                </div>
+                <div style="font-size: 14px; color: #666;">
+                    ${successCount} sucessos${errorCount > 0 ? `, ${errorCount} erros` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Remover após 2 segundos
+        setTimeout(() => {
+            this.hideProgressBar();
+        }, 2000);
+    }
+    
+    hideProgressBar() {
+        const progressBar = document.getElementById('massActionProgressBar');
+        if (progressBar) {
+            progressBar.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (progressBar.parentNode) {
+                    progressBar.remove();
+                }
+            }, 300);
+        }
+    }
+    
+    // Método para limpar seleções
+    clearSelectedLeads() {
+        this.selectedLeads.clear();
+        
+        // Desmarcar todos os checkboxes
+        document.querySelectorAll('.lead-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        // Desmarcar checkbox "selecionar todos"
+        const selectAllCheckbox = document.getElementById('selectAllLeads');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+        }
+        
+        // Atualizar contadores
+        this.updateMassActionButtons();
+        
+        this.debug('Todas as seleções foram limpas', 'clearSelectedLeads', 'info');
+    }
+    
+    // Método para selecionar todos os leads da página atual
+    selectAllCurrentPageLeads() {
+        const checkboxes = document.querySelectorAll('.lead-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.selectedLeads.add(checkbox.value);
+        });
+        
+        // Marcar checkbox "selecionar todos"
+        const selectAllCheckbox = document.getElementById('selectAllLeads');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+        }
+        
+        this.updateMassActionButtons();
+        this.debug(`Selecionados todos os ${checkboxes.length} leads da página atual`, 'selectAllCurrentPageLeads', 'info');
+    }
+    
+    // Método para desmarcar todos
+    deselectAllLeads() {
+        this.clearSelectedLeads();
+        this.debug('Todos os leads foram desmarcados', 'deselectAllLeads', 'info');
+    }
+    
+    // Sobrescrever método de ação em massa para usar nova lógica
+    async executeMassAction(action, targetStage = null) {
+        const selectedIds = Array.from(this.selectedLeads);
+        
+        if (selectedIds.length === 0) {
+            this.debug('Tentativa de ação em massa sem seleções', 'executeMassAction', 'warning');
+            alert('Selecione pelo menos um lead para executar esta ação.');
+            return;
+        }
+        
+        // Usar nova lógica com progresso
+        await this.performMassAction(action, selectedIds, targetStage);
+    }
+
+    async createLead(leadData) {
+        try {
+            // Implementar criação de lead
+        } catch (error) {
+            this.debug(`Erro ao criar lead: ${error.message}`, 'createLead', 'error');
+            console.error('Erro ao criar lead:', error);
+            alert('Erro ao criar lead: ' + error.message);
+        }
+    }
+
+    async saveEditedLead(leadData) {
+        try {
+            // Implementar salvamento de lead editado
+        } catch (error) {
+            this.debug(`Erro ao salvar lead editado: ${error.message}`, 'saveEditedLead', 'error');
+            console.error('Erro ao salvar lead:', error);
+            alert('Erro ao salvar lead: ' + error.message);
+        }
     }
 
     async clearAllLeads() {
