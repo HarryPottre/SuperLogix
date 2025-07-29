@@ -143,7 +143,7 @@ class AdminPanel {
         const selectAllButton = document.getElementById('selectAllLeadsButton');
         if (selectAllButton) {
             selectAllButton.addEventListener('click', () => {
-                this.selectAllLeads();
+                this.selectAllVisibleLeads();
             });
         }
 
@@ -154,6 +154,47 @@ class AdminPanel {
                 this.deselectAllLeads();
             });
         }
+    }
+
+    selectAllVisibleLeads() {
+        console.log('📋 Selecionando todos os leads visíveis...');
+        
+        // Obter todos os checkboxes visíveis na página atual
+        const visibleCheckboxes = document.querySelectorAll('#leadsTableBody input[type="checkbox"]:not(#selectAllLeads)');
+        
+        visibleCheckboxes.forEach(checkbox => {
+            if (!checkbox.checked) {
+                checkbox.checked = true;
+                // Disparar evento change para atualizar contadores
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Atualizar checkbox principal
+        const selectAllCheckbox = document.getElementById('selectAllLeads');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+        }
+
+        this.updateMassActionButtons();
+        console.log(`✅ ${visibleCheckboxes.length} leads selecionados`);
+    }
+
+    deselectAllLeads() {
+        console.log('🔄 Desmarcando todos os leads...');
+        
+        // Desmarcar todos os checkboxes
+        const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+        allCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                checkbox.checked = false;
+                // Disparar evento change para atualizar contadores
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+
+        this.updateMassActionButtons();
+        console.log('✅ Todos os leads desmarcados');
     }
 
     selectAllLeads() {
@@ -177,33 +218,10 @@ class AdminPanel {
         console.log(`✅ ${checkboxes.length} leads selecionados`);
     }
 
-    deselectAllLeads() {
-        console.log('🔄 Desmarcando todos os leads...');
-        
-        // Desmarcar checkbox principal
-        const selectAllCheckbox = document.getElementById('selectAllLeads');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = false;
-        }
-
-        // Desmarcar todos os checkboxes individuais
-        const checkboxes = document.querySelectorAll('.lead-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = false;
-        });
-
-        // Atualizar contadores
-        this.updateMassActionButtons();
-        
-        console.log('✅ Todos os leads desmarcados');
-    }
-
     showProgressBar(operation, total) {
-        // Remover barra existente se houver
-        this.hideProgressBar();
-
+        // Criar container da barra de progresso
         const progressContainer = document.createElement('div');
-        progressContainer.id = 'massActionProgressBar';
+        progressContainer.id = 'massActionProgressContainer';
         progressContainer.style.cssText = `
             position: fixed;
             top: 20px;
@@ -212,7 +230,7 @@ class AdminPanel {
             border: 2px solid #345C7A;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 20px rgba(52, 92, 122, 0.3);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
             z-index: 9999;
             min-width: 300px;
             animation: slideInRight 0.3s ease;
@@ -226,18 +244,30 @@ class AdminPanel {
                     <div id="progressText" style="color: #666; font-size: 0.9rem;">Iniciando...</div>
                 </div>
             </div>
-            <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden;">
-                <div id="progressFill" style="
-                    background: linear-gradient(45deg, #345C7A, #2c4a63);
+            <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 10px;">
+                <div id="progressBar" style="
+                    background: linear-gradient(45deg, #345C7A, #4a6b8a);
                     height: 100%;
                     width: 0%;
                     transition: width 0.3s ease;
                     border-radius: 10px;
                 "></div>
             </div>
+            <div style="text-align: center;">
+                <button id="cancelProgressButton" style="
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                    transition: all 0.3s ease;
+                ">
+                    Cancelar
+                </button>
+            </div>
         `;
-
-        document.body.appendChild(progressContainer);
 
         // Adicionar CSS de animação se não existir
         if (!document.getElementById('progressAnimations')) {
@@ -260,9 +290,23 @@ class AdminPanel {
             document.head.appendChild(style);
         }
 
+        document.body.appendChild(progressContainer);
+
+        // Configurar botão de cancelar
+        const cancelButton = document.getElementById('cancelProgressButton');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', () => {
+                this.hideProgressBar();
+            });
+        }
+
+        // Armazenar referências para atualização
+        this.currentProgressTotal = total;
+        this.currentProgressCount = 0;
+
         return {
             update: (current, total) => {
-                const progressFill = document.getElementById('progressFill');
+                const progressFill = document.getElementById('progressBar');
                 const progressText = document.getElementById('progressText');
                 
                 if (progressFill && progressText) {
@@ -272,7 +316,7 @@ class AdminPanel {
                 }
             },
             complete: () => {
-                const progressContainer = document.getElementById('massActionProgressBar');
+                const progressContainer = document.getElementById('massActionProgressContainer');
                 if (progressContainer) {
                     // Mostrar ícone de sucesso
                     progressContainer.innerHTML = `
@@ -294,15 +338,47 @@ class AdminPanel {
         };
     }
 
-    hideProgressBar() {
-        const progressContainer = document.getElementById('massActionProgressBar');
+    updateProgressBar(current, total, message = '') {
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        if (progressBar && progressText) {
+            const percentage = (current / total) * 100;
+            progressBar.style.width = `${percentage}%`;
+            
+            const defaultMessage = `${current} de ${total} concluídos`;
+            progressText.textContent = message || defaultMessage;
+        }
+    }
+
+    hideProgressBar(showSuccess = false) {
+        const progressContainer = document.getElementById('massActionProgressContainer');
         if (progressContainer) {
-            progressContainer.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => {
-                if (progressContainer.parentNode) {
-                    progressContainer.remove();
-                }
-            }, 300);
+            if (showSuccess) {
+                // Mostrar ícone de sucesso por 2 segundos
+                progressContainer.innerHTML = `
+                    <div style="text-align: center; padding: 10px;">
+                        <i class="fas fa-check-circle" style="color: #27ae60; font-size: 2rem; margin-bottom: 10px;"></i>
+                        <div style="color: #27ae60; font-weight: 600;">Operação concluída!</div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    progressContainer.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => {
+                        if (progressContainer.parentNode) {
+                            progressContainer.remove();
+                        }
+                    }, 300);
+                }, 2000);
+            } else {
+                progressContainer.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (progressContainer.parentNode) {
+                        progressContainer.remove();
+                    }
+                }, 300);
+            }
         }
     }
 
