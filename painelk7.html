@@ -938,6 +938,18 @@
                         </div>
                         
                         <div class="control-group">
+                            <label>Controle de Automação</label>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="control-button success" id="pauseAutomationButton" title="Pausar automação">
+                                    <i class="fas fa-pause"></i> Pausar
+                                </button>
+                                <button class="control-button" id="resumeAutomationButton" title="Continuar automação" style="display: none;">
+                                    <i class="fas fa-play"></i> Continuar
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
                             <label>Buscar Lead</label>
                             <input type="text" class="control-input" id="searchInput" placeholder="Nome ou CPF">
                         </div>
@@ -975,6 +987,13 @@
                             <label>&nbsp;</label>
                             <button class="control-button" id="applyFiltersButton">
                                 <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>&nbsp;</label>
+                            <button class="control-button success" id="refreshLeadsButton" title="Atualizar lista de leads">
+                                <i class="fas fa-sync-alt"></i> Atualizar
                             </button>
                         </div>
                     </div>

@@ -17,6 +17,8 @@ class AdminPanel {
         this.autoUpdateInterval = null;
         this.bulkImportData = [];
         this.isImporting = false;
+        this.automationPaused = false;
+        this.automationTimers = [];
         
         console.log('🎛️ AdminPanel inicializado');
         this.init();
@@ -135,6 +137,9 @@ class AdminPanel {
 
         // Modais
         this.setupModalEvents();
+        
+        this.setupAutomationControls();
+        this.setupRefreshButton();
     }
 
     setupBulkImportEvents() {
@@ -174,6 +179,154 @@ class AdminPanel {
         }
 
         console.log('✅ Eventos de importação em massa configurados');
+    }
+    
+    setupAutomationControls() {
+        const pauseButton = document.getElementById('pauseAutomationButton');
+        const resumeButton = document.getElementById('resumeAutomationButton');
+        
+        if (pauseButton) {
+            pauseButton.addEventListener('click', () => {
+                this.pauseAutomation();
+            });
+        }
+        
+        if (resumeButton) {
+            resumeButton.addEventListener('click', () => {
+                this.resumeAutomation();
+            });
+        }
+    }
+    
+    setupRefreshButton() {
+        const refreshButton = document.getElementById('refreshLeadsButton');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                this.refreshLeads();
+                this.showNotification('Lista de leads atualizada!', 'success');
+            });
+        }
+    }
+    
+    pauseAutomation() {
+        this.automationPaused = true;
+        
+        // Limpar todos os timers de automação
+        this.automationTimers.forEach(timer => clearTimeout(timer));
+        this.automationTimers = [];
+        
+        // Atualizar interface
+        const pauseButton = document.getElementById('pauseAutomationButton');
+        const resumeButton = document.getElementById('resumeAutomationButton');
+        const systemStatus = document.getElementById('systemStatus');
+        
+        if (pauseButton) pauseButton.style.display = 'none';
+        if (resumeButton) resumeButton.style.display = 'inline-flex';
+        
+        if (systemStatus) {
+            systemStatus.innerHTML = '<i class="fas fa-pause"></i> Automação Pausada';
+            systemStatus.className = 'status-indicator manual';
+        }
+        
+        console.log('⏸️ Automação pausada');
+        this.showNotification('Automação pausada', 'warning');
+    }
+    
+    resumeAutomation() {
+        this.automationPaused = false;
+        
+        // Atualizar interface
+        const pauseButton = document.getElementById('pauseAutomationButton');
+        const resumeButton = document.getElementById('resumeAutomationButton');
+        const systemStatus = document.getElementById('systemStatus');
+        
+        if (pauseButton) pauseButton.style.display = 'inline-flex';
+        if (resumeButton) resumeButton.style.display = 'none';
+        
+        if (systemStatus) {
+            systemStatus.innerHTML = '<i class="fas fa-robot"></i> Modo Automático';
+            systemStatus.className = 'status-indicator auto';
+        }
+        
+        // Reiniciar automação para leads pendentes
+        this.restartAutomationForPendingLeads();
+        
+        console.log('▶️ Automação retomada');
+        this.showNotification('Automação retomada', 'success');
+    }
+    
+    restartAutomationForPendingLeads() {
+        if (this.automationPaused) return;
+        
+        const leads = this.dbService.getAllLeads();
+        const pendingLeads = leads.filter(lead => lead.etapa_atual < 16);
+        
+        console.log(`🔄 Reiniciando automação para ${pendingLeads.length} leads pendentes`);
+        
+        pendingLeads.forEach((lead, index) => {
+            if (this.automationPaused) return;
+            
+            // Agendar próxima etapa com delay escalonado
+            const delay = (index + 1) * 30000; // 30 segundos entre cada lead
+            
+            const timer = setTimeout(() => {
+                if (!this.automationPaused && lead.etapa_atual < 16) {
+                    this.advanceLeadStage(lead.cpf);
+                }
+            }, delay);
+            
+            this.automationTimers.push(timer);
+        });
+    }
+    
+    showNotification(message, type = 'info') {
+        // Remover notificação existente
+        const existingNotification = document.querySelector('.admin-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        // Criar nova notificação
+        const notification = document.createElement('div');
+        notification.className = 'admin-notification';
+        
+        const colors = {
+            success: '#d4edda',
+            warning: '#fff3cd',
+            error: '#f8d7da',
+            info: '#d1ecf1'
+        };
+        
+        const textColors = {
+            success: '#155724',
+            warning: '#856404',
+            error: '#721c24',
+            info: '#0c5460'
+        };
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: ${textColors[type] || textColors.info};
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            font-weight: 600;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+        `;
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remover após 3 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
     }
 
     // FUNÇÃO CORRIGIDA - Pré-visualização de dados em massa
@@ -1238,6 +1391,66 @@ class AdminPanel {
                     this.autoUpdateInterval = null;
                 }
             }
+        }
+    }
+
+    // Método para avançar etapa de um lead específico
+    advanceLeadStage(cpf) {
+        if (this.automationPaused) {
+            console.log('⏸️ Automação pausada, não avançando etapa');
+            return;
+        }
+        
+        try {
+            const leads = this.dbService.getAllLeads();
+            const leadIndex = leads.findIndex(lead => lead.cpf === cpf);
+            
+            if (leadIndex === -1) {
+                console.warn(`⚠️ Lead com CPF ${cpf} não encontrado`);
+                return;
+            }
+            
+            const lead = leads[leadIndex];
+            const currentStage = lead.etapa_atual || 1;
+            
+            // Não avançar se já estiver na etapa final
+            if (currentStage >= 16) {
+                console.log(`✅ Lead ${cpf} já está na etapa final (${currentStage})`);
+                return;
+            }
+            
+            // Avançar para próxima etapa
+            const nextStage = currentStage + 1;
+            const updatedLead = {
+                ...lead,
+                etapa_atual: nextStage,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Atualizar no banco
+            leads[leadIndex] = updatedLead;
+            this.dbService.saveLeads(leads);
+            
+            // Agendar próxima etapa se não for a última
+            if (updatedLead.etapa_atual < 16) {
+                const timer = setTimeout(() => {
+                    if (!this.automationPaused) {
+                        this.advanceLeadStage(cpf);
+                    }
+                }, 2 * 60 * 60 * 1000); // 2 horas
+                
+                this.automationTimers.push(timer);
+            }
+            
+            console.log(`✅ Lead ${cpf} avançou para etapa ${updatedLead.etapa_atual}`);
+            
+            // Atualizar interface se estiver na view de leads
+            if (this.currentView === 'leadsView') {
+                this.refreshLeads();
+            }
+            
+        } catch (error) {
+            console.error(`❌ Erro ao avançar etapa do lead ${cpf}:`, error);
         }
     }
 
