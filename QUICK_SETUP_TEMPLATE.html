@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Importação em Massa - Template Reutilizável</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #345C7A;
+        }
+
+        .header h1 {
+            color: #345C7A;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .bulk-import-section {
+            margin-bottom: 30px;
+        }
+
+        .bulk-import-instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #345C7A;
+        }
+
+        .bulk-import-instructions h4 {
+            color: #345C7A;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bulk-import-instructions p {
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .format-example {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+
+        .bulk-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .bulk-textarea:focus {
+            outline: none;
+            border-color: #345C7A;
+            box-shadow: 0 0 0 3px rgba(52, 92, 122, 0.1);
+        }
+
+        .bulk-controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-button {
+            background: #345C7A;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-button:hover {
+            background: #2c4a63;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(52, 92, 122, 0.3);
+        }
+
+        .control-button.danger {
+            background: #e74c3c;
+        }
+
+        .control-button.danger:hover {
+            background: #c0392b;
+        }
+
+        .control-button.success {
+            background: #27ae60;
+        }
+
+        .control-button.success:hover {
+            background: #229954;
+        }
+
+        .control-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #345C7A;
+        }
+
+        .preview-section h4 {
+            color: #345C7A;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .preview-summary {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .results-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e8f5e8;
+            border-radius: 8px;
+            border: 2px solid #27ae60;
+        }
+
+        .results-section h4 {
+            color: #27ae60;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #345C7A, #2c4a63);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+
+        .stat-card.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .stat-card.info {
+            background: #cce5ff;
+            border: 1px solid #b3d9ff;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .info-box h5 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-box p {
+            color: #856404;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            .bulk-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-button {
+                justify-content: center;
+            }
+
+            .preview-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .loading {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-upload"></i> Sistema de Importação em Massa</h1>
+            <p>Template reutilizável para projetos Bolt</p>
+        </div>
+
+        <!-- Seção de Importação em Massa -->
+        <div class="bulk-import-section">
+            <!-- Instruções -->
+            <div class="bulk-import-instructions">
+                <h4><i class="fas fa-info-circle"></i> Instruções de Importação</h4>
+                <p><strong>Cole os dados da planilha diretamente no campo abaixo.</strong></p>
+                <p>Formato esperado (separado por TAB ou espaços):</p>
+                <div class="format-example">
+                    Nome&nbsp;&nbsp;&nbsp;&nbsp;Email&nbsp;&nbsp;&nbsp;&nbsp;Telefone&nbsp;&nbsp;&nbsp;&nbsp;CPF&nbsp;&nbsp;&nbsp;&nbsp;Produto&nbsp;&nbsp;&nbsp;&nbsp;Valor&nbsp;&nbsp;&nbsp;&nbsp;Endereço&nbsp;&nbsp;&nbsp;&nbsp;Número&nbsp;&nbsp;&nbsp;&nbsp;Complemento&nbsp;&nbsp;&nbsp;&nbsp;Bairro&nbsp;&nbsp;&nbsp;&nbsp;CEP&nbsp;&nbsp;&nbsp;&nbsp;Cidade&nbsp;&nbsp;&nbsp;&nbsp;Estado&nbsp;&nbsp;&nbsp;&nbsp;País
+                </div>
+                <p><strong>Campos obrigatórios:</strong> Nome, Email, Telefone, CPF</p>
+            </div>
+            
+            <!-- Campo de colagem -->
+            <textarea 
+                id="bulkDataTextarea" 
+                class="bulk-textarea" 
+                placeholder="Cole aqui os dados copiados da planilha...
+
+Exemplo:
+João Silva Santos	joao@email.com	5511999999999	12345678901	Kit Produto	47.39	Rua das Flores	123	Apto 1	Centro	01234567	São Paulo	SP	BR
+Maria Costa	maria@email.com	5511888888888	98765432100	Kit Produto	71.86	Av. Paulista	456		Bela Vista	01310100	São Paulo	SP	BR">
+            </textarea>
+            
+            <!-- Botões de controle -->
+            <div class="bulk-controls">
+                <button id="previewBulkDataButton" class="control-button">
+                    <i class="fas fa-eye"></i> Análise Inteligente
+                </button>
+                <button id="clearBulkDataButton" class="control-button danger">
+                    <i class="fas fa-trash"></i> Limpar Dados
+                </button>
+                <div class="info-box" style="margin: 0; padding: 10px; flex: 1;">
+                    <p style="margin: 0; font-size: 0.8rem;">
+                        <i class="fas fa-lightbulb"></i> 
+                        Cole os dados e clique em "Análise Inteligente" para verificar os campos
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Seção de pré-visualização -->
+        <div id="bulkPreviewSection" class="preview-section" style="display: none;">
+            <h4><i class="fas fa-table"></i> Pré-visualização dos Dados</h4>
+            <div id="bulkPreviewContainer">
+                <!-- Tabela de pré-visualização será inserida aqui -->
+            </div>
+            <div class="preview-controls">
+                <button id="confirmBulkImportButton" class="control-button success" style="display: none;">
+                    <i class="fas fa-rocket"></i> Confirmar Importação
+                </button>
+                <button id="editBulkDataButton" class="control-button">
+                    <i class="fas fa-edit"></i> Editar Dados
+                </button>
+                <span id="previewSummary" class="preview-summary">
+                    <!-- Resumo será inserido aqui -->
+                </span>
+            </div>
+        </div>
+        
+        <!-- Seção de resultados -->
+        <div id="bulkResultsSection" class="results-section" style="display: none;">
+            <h4><i class="fas fa-chart-bar"></i> Progresso da Importação</h4>
+            <div id="bulkResultsContainer">
+                <!-- Progresso e resultados serão inseridos aqui -->
+            </div>
+        </div>
+
+        <!-- Informações adicionais -->
+        <div class="info-box">
+            <h5><i class="fas fa-cog"></i> Configuração</h5>
+            <p>Este template está configurado para usar localStorage. Para usar Supabase, modifique a função de salvamento no arquivo BULK_IMPORT_CORE_FUNCTIONS.js</p>
+        </div>
+    </div>
+
+    <!-- JavaScript Core -->
+    <script type="module">
+        // ===== FUNÇÕES CORE INLINE (para template standalone) =====
+        
+        function parseRawBulkData(rawData) {
+            console.log('📊 Iniciando análise inteligente dos dados...');
+            
+            if (!rawData || !rawData.trim()) {
+                return {
+                    success: false,
+                    error: 'Nenhuma linha válida encontrada nos dados colados.'
+                };
+            }
+            
+            const lines = rawData.trim().split('\n').filter(line => line.trim());
+            
+            if (lines.length === 0) {
+                return {
+                    success: false,
+                    error: 'Nenhuma linha válida encontrada nos dados colados.'
+                };
+            }
+            
+            const leads = [];
+            const parseErrors = [];
+            const duplicatesInList = new Set();
+            
+            console.log(`📋 Total de linhas para processar: ${lines.length}`);
+            
+            // Obter leads existentes
+            const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const existingCPFs = new Set(existingLeads.map(lead => 
+                lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : ''
+            ));
+
+            for (let i = 0; i < lines.length; i++) {
+                try {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    // Detecção inteligente de separadores
+                    let fields = [];
+                    
+                    if (line.includes('\t')) {
+                        fields = line.split('\t');
+                    } else if (line.includes('  ')) {
+                        fields = line.split(/\s{2,}/);
+                    } else {
+                        fields = line.split(/\s+/);
+                    }
+
+                    fields = fields.map(field => field.trim()).filter(field => field.length > 0);
+
+                    if (fields.length < 4) {
+                        parseErrors.push({
+                            line: i + 1,
+                            error: `Poucos campos: ${fields.length}. Mínimo: 4`,
+                            data: line
+                        });
+                        continue;
+                    }
+
+                    const [
+                        nomeCompleto,
+                        email,
+                        telefone,
+                        documento,
+                        produto = 'Produto Padrão',
+                        valorTotal = '47.39',
+                        endereco = '',
+                        numero = '',
+                        complemento = '',
+                        bairro = '',
+                        cep = '',
+                        cidade = '',
+                        estado = '',
+                        pais = 'BR'
+                    ] = fields;
+
+                    // Validações
+                    if (!nomeCompleto || nomeCompleto.length < 2) {
+                        parseErrors.push({
+                            line: i + 1,
+                            error: 'Nome é obrigatório',
+                            data: line
+                        });
+                        continue;
+                    }
+
+                    if (!email || !email.includes('@')) {
+                        parseErrors.push({
+                            line: i + 1,
+                            error: 'Email inválido',
+                            data: line
+                        });
+                        continue;
+                    }
+
+                    const cleanCPF = documento ? documento.replace(/[^\d]/g, '') : '';
+                    if (!cleanCPF || cleanCPF.length !== 11) {
+                        parseErrors.push({
+                            line: i + 1,
+                            error: 'CPF deve ter 11 dígitos',
+                            data: line
+                        });
+                        continue;
+                    }
+
+                    // Verificar duplicatas
+                    if (duplicatesInList.has(cleanCPF) || existingCPFs.has(cleanCPF)) {
+                        parseErrors.push({
+                            line: i + 1,
+                            error: 'CPF duplicado',
+                            data: line
+                        });
+                        continue;
+                    }
+                    duplicatesInList.add(cleanCPF);
+
+                    // Processar valor
+                    const valorProcessado = parseFloat(valorTotal.toString().replace(',', '.')) || 47.39;
+
+                    // Construir endereço
+                    const enderecoCompleto = [endereco, numero, complemento, bairro, cidade, estado, cep, pais]
+                        .filter(part => part && part.trim())
+                        .join(' - ') || 'Endereço não informado';
+
+                    // Criar lead
+                    const leadData = {
+                        nome_completo: nomeCompleto,
+                        email: email,
+                        telefone: telefone,
+                        cpf: cleanCPF,
+                        produto: produto,
+                        valor_total: valorProcessado,
+                        endereco: enderecoCompleto,
+                        meio_pagamento: 'PIX',
+                        origem: 'direto',
+                        etapa_atual: 1,
+                        status_pagamento: 'pendente',
+                        lineNumber: i + 1,
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+
+                    leads.push(leadData);
+
+                } catch (error) {
+                    parseErrors.push({
+                        line: i + 1,
+                        error: error.message,
+                        data: lines[i]
+                    });
+                }
+            }
+
+            return {
+                success: true,
+                leads: leads,
+                errors: parseErrors,
+                totalProcessed: lines.length
+            };
+        }
+
+        function displayBulkPreview(parsedData) {
+            const previewContainer = document.getElementById('bulkPreviewContainer');
+            if (!previewContainer) return;
+
+            let tableHTML = `
+                <div style="max-height: 400px; overflow: auto; border: 1px solid #ddd; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead style="background: #345C7A; color: white; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 8px; border: 1px solid #ddd;">#</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">Nome</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">Email</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">Telefone</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">CPF</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">Produto</th>
+                                <th style="padding: 8px; border: 1px solid #ddd;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            parsedData.leads.forEach((lead, index) => {
+                const rowColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
+                const cpfFormatted = lead.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                
+                tableHTML += `
+                    <tr style="background: ${rowColor};">
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${lead.lineNumber}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd;" title="${lead.nome_completo}">
+                            ${lead.nome_completo.length > 20 ? lead.nome_completo.substring(0, 20) + '...' : lead.nome_completo}
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #ddd;" title="${lead.email}">
+                            ${lead.email.length > 25 ? lead.email.substring(0, 25) + '...' : lead.email}
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #ddd;">${lead.telefone}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd;">${cpfFormatted}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd;" title="${lead.produto}">
+                            ${lead.produto.length > 30 ? lead.produto.substring(0, 30) + '...' : lead.produto}
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">
+                            R$ ${lead.valor_total.toFixed(2)}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `</tbody></table></div>`;
+
+            // Adicionar erros se houver
+            if (parsedData.errors.length > 0) {
+                tableHTML += `
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+                        <h5 style="color: #856404; margin-bottom: 10px;">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Problemas Encontrados (${parsedData.errors.length})
+                        </h5>
+                        <div style="max-height: 150px; overflow-y: auto;">
+                `;
+
+                parsedData.errors.slice(0, 5).forEach(error => {
+                    tableHTML += `
+                        <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #dc3545;">
+                            <strong>Linha ${error.line}:</strong> ${error.error}
+                        </div>
+                    `;
+                });
+
+                if (parsedData.errors.length > 5) {
+                    tableHTML += `
+                        <div style="text-align: center; color: #666; font-style: italic; margin-top: 10px;">
+                            ... e mais ${parsedData.errors.length - 5} problemas
+                        </div>
+                    `;
+                }
+
+                tableHTML += `</div></div>`;
+            }
+
+            previewContainer.innerHTML = tableHTML;
+        }
+
+        async function confirmBulkImport(bulkData) {
+            console.log(`🚀 Iniciando importação de ${bulkData.length} leads...`);
+
+            // Mostrar progresso
+            showImportProgress(bulkData.length);
+
+            const results = { success: 0, errors: 0, total: bulkData.length };
+
+            for (let i = 0; i < bulkData.length; i++) {
+                try {
+                    const lead = bulkData[i];
+                    
+                    // Salvar no localStorage
+                    const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+                    existingLeads.push(lead);
+                    localStorage.setItem('leads', JSON.stringify(existingLeads));
+
+                    results.success++;
+                    console.log(`✅ Lead ${i + 1}/${bulkData.length} importado: ${lead.nome_completo}`);
+
+                } catch (error) {
+                    console.error(`❌ Erro ao importar lead ${i + 1}:`, error);
+                    results.errors++;
+                }
+
+                // Atualizar progresso
+                updateImportProgress(i + 1, bulkData.length);
+                
+                // Pequeno delay
+                if (i % 10 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+
+            // Mostrar resultados
+            showImportResults(results);
+            return results;
+        }
+
+        function showImportProgress(total) {
+            const resultsSection = document.getElementById('bulkResultsSection');
+            const resultsContainer = document.getElementById('bulkResultsContainer');
+
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <i class="fas fa-upload loading" style="font-size: 2rem; color: #345C7A;"></i>
+                    </div>
+                    <h4 style="color: #345C7A; margin-bottom: 15px;">Importando Leads...</h4>
+                    <div class="progress-bar">
+                        <div id="importProgressFill" class="progress-fill">0%</div>
+                    </div>
+                    <div id="importProgressText">0 / ${total} leads processados</div>
+                </div>
+            `;
+        }
+
+        function updateImportProgress(current, total) {
+            const progressFill = document.getElementById('importProgressFill');
+            const progressText = document.getElementById('importProgressText');
+
+            if (progressFill && progressText) {
+                const percentage = (current / total) * 100;
+                progressFill.style.width = `${percentage}%`;
+                progressFill.textContent = `${Math.round(percentage)}%`;
+                progressText.textContent = `${current} / ${total} leads processados`;
+            }
+        }
+
+        function showImportResults(results) {
+            const resultsContainer = document.getElementById('bulkResultsContainer');
+            
+            resultsContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <i class="fas fa-check-circle" style="font-size: 2rem; color: #27ae60;"></i>
+                    </div>
+                    <h4 style="color: #27ae60; margin-bottom: 15px;">Importação Concluída!</h4>
+                    <div class="stats-grid">
+                        <div class="stat-card success">
+                            <div class="stat-number" style="color: #155724;">${results.success}</div>
+                            <div class="stat-label">Sucessos</div>
+                        </div>
+                        <div class="stat-card error">
+                            <div class="stat-number" style="color: #721c24;">${results.errors}</div>
+                            <div class="stat-label">Erros</div>
+                        </div>
+                        <div class="stat-card info">
+                            <div class="stat-number" style="color: #004085;">${results.total}</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                    </div>
+                    <button onclick="viewLeads()" class="control-button success" style="margin-top: 20px;">
+                        <i class="fas fa-list"></i> Ver Leads Importados
+                    </button>
+                </div>
+            `;
+        }
+
+        function clearBulkData() {
+            const textarea = document.getElementById('bulkDataTextarea');
+            const previewSection = document.getElementById('bulkPreviewSection');
+            const resultsSection = document.getElementById('bulkResultsSection');
+
+            if (textarea) textarea.value = '';
+            if (previewSection) previewSection.style.display = 'none';
+            if (resultsSection) resultsSection.style.display = 'none';
+
+            window.bulkImportData = [];
+            console.log('🧹 Dados limpos');
+        }
+
+        function viewLeads() {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            console.log('📊 Total de leads no banco:', leads.length);
+            console.log('📋 Últimos 5 leads:', leads.slice(-5));
+            alert(`Total de leads no banco: ${leads.length}\nVerifique o console para mais detalhes.`);
+        }
+
+        // ===== CONFIGURAÇÃO DE EVENTOS =====
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Sistema de importação em massa inicializado');
+
+            // Botão de pré-visualização
+            document.getElementById('previewBulkDataButton')?.addEventListener('click', () => {
+                const textarea = document.getElementById('bulkDataTextarea');
+                const rawData = textarea?.value;
+
+                if (!rawData || rawData.trim().length === 0) {
+                    alert('Por favor, cole os dados da planilha no campo de texto.');
+                    return;
+                }
+
+                console.log('🔍 Iniciando análise dos dados...');
+                const parsedData = parseRawBulkData(rawData);
+
+                if (!parsedData.success) {
+                    alert(parsedData.error);
+                    return;
+                }
+
+                console.log('✅ Dados analisados:', parsedData);
+
+                // Mostrar pré-visualização
+                displayBulkPreview(parsedData);
+                
+                const previewSection = document.getElementById('bulkPreviewSection');
+                const confirmButton = document.getElementById('confirmBulkImportButton');
+                const previewSummary = document.getElementById('previewSummary');
+
+                if (previewSection) previewSection.style.display = 'block';
+                
+                if (confirmButton && parsedData.leads.length > 0) {
+                    confirmButton.style.display = 'inline-flex';
+                    confirmButton.innerHTML = `<i class="fas fa-rocket"></i> Importar ${parsedData.leads.length} Registros`;
+                    window.bulkImportData = parsedData.leads;
+                }
+
+                if (previewSummary) {
+                    previewSummary.innerHTML = `
+                        <i class="fas fa-info-circle"></i>
+                        ${parsedData.leads.length} registros válidos, 
+                        ${parsedData.errors.length} erros
+                    `;
+                }
+            });
+
+            // Botão de confirmação
+            document.getElementById('confirmBulkImportButton')?.addEventListener('click', async () => {
+                if (!window.bulkImportData || window.bulkImportData.length === 0) {
+                    alert('Nenhum dado válido para importar');
+                    return;
+                }
+
+                await confirmBulkImport(window.bulkImportData);
+                clearBulkData();
+            });
+
+            // Botão de limpar
+            document.getElementById('clearBulkDataButton')?.addEventListener('click', () => {
+                if (confirm('Tem certeza que deseja limpar todos os dados?')) {
+                    clearBulkData();
+                }
+            });
+
+            // Botão de editar
+            document.getElementById('editBulkDataButton')?.addEventListener('click', () => {
+                const previewSection = document.getElementById('bulkPreviewSection');
+                if (previewSection) previewSection.style.display = 'none';
+                window.bulkImportData = [];
+            });
+        });
+
+        // Expor função para teste
+        window.viewLeads = viewLeads;
+    </script>
+</body>
+</html>
