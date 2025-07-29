@@ -23,6 +23,26 @@ class AdminPanel {
         this.bulkImportData = [];
         this.isImporting = false;
         
+        // Mapeamento ordenado das etapas para lógica automatizada
+        this.stageOrder = [
+            { id: 1, name: "Pedido criado" },
+            { id: 2, name: "Preparando para envio" },
+            { id: 3, name: "Vendedor enviou pedido" },
+            { id: 4, name: "Centro triagem Shenzhen" },
+            { id: 5, name: "Centro logístico Shenzhen" },
+            { id: 6, name: "Trânsito internacional" },
+            { id: 7, name: "Liberado exportação" },
+            { id: 8, name: "Saiu origem Shenzhen" },
+            { id: 9, name: "Chegou no Brasil" },
+            { id: 10, name: "Trânsito Curitiba/PR" },
+            { id: 11, name: "Alfândega importação" },
+            { id: 12, name: "Liberado alfândega" },
+            { id: 13, name: "Sairá para entrega" },
+            { id: 14, name: "Em trânsito entrega" },
+            { id: 15, name: "Rota de entrega" },
+            { id: 16, name: "Tentativa entrega" }
+        ];
+        
         console.log('🎛️ AdminPanel inicializado');
         this.init();
     }
@@ -137,27 +157,341 @@ class AdminPanel {
         });
 
         // Ações em massa
-        document.getElementById('massNextStage')?.addEventListener('click', () => {
-            this.handleMassAction('next');
-        });
-
-        document.getElementById('massPrevStage')?.addEventListener('click', () => {
-            this.handleMassAction('prev');
-        });
-
-        document.getElementById('massSetStage')?.addEventListener('click', () => {
-            this.handleMassAction('set');
-        });
-
-        document.getElementById('massDeleteLeads')?.addEventListener('click', () => {
-            this.handleMassAction('delete');
-        });
+        this.setupMassActions();
 
         // Importação em massa - CORRIGIDO
         this.setupBulkImportEvents();
 
         // Modais
         this.setupModalEvents();
+    }
+
+    setupMassActions() {
+        this.debugLog('Configurando ações em massa...', 'info');
+        
+        // Usar delegação de eventos para garantir que os botões funcionem
+        document.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            
+            // Verificar se é um botão de ação em massa
+            if (target.id === 'massNextStage') {
+                e.preventDefault();
+                this.handleMassAction('next');
+            } else if (target.id === 'massPrevStage') {
+                e.preventDefault();
+                this.handleMassAction('prev');
+            } else if (target.id === 'massSetStage') {
+                e.preventDefault();
+                this.handleMassAction('set');
+            } else if (target.id === 'massDeleteLeads') {
+                e.preventDefault();
+                this.handleMassAction('delete');
+            } else if (target.id === 'massSelectAll') {
+                e.preventDefault();
+                this.selectAllLeads();
+            } else if (target.id === 'massDeselectAll') {
+                e.preventDefault();
+                this.deselectAllLeads();
+            }
+        });
+        
+        // Botões de selecionar/desmarcar todos
+        const selectAllButton = document.getElementById('massSelectAll');
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                this.selectAllLeads();
+            });
+        }
+
+        const deselectAllButton = document.getElementById('massDeselectAll');
+        if (deselectAllButton) {
+            deselectAllButton.addEventListener('click', () => {
+                this.deselectAllLeads();
+            });
+        }
+        
+        this.debugLog('Ações em massa configuradas', 'info');
+    }
+    
+    // Obter próxima etapa na sequência
+    getNextStage(currentStage) {
+        const currentIndex = this.stageOrder.findIndex(stage => stage.id === parseInt(currentStage));
+        if (currentIndex === -1 || currentIndex === this.stageOrder.length - 1) {
+            return currentStage; // Não avança se não encontrar ou se já for a última
+        }
+        return this.stageOrder[currentIndex + 1].id;
+    }
+    
+    // Obter etapa anterior na sequência
+    getPreviousStage(currentStage) {
+        const currentIndex = this.stageOrder.findIndex(stage => stage.id === parseInt(currentStage));
+        if (currentIndex === -1 || currentIndex === 0) {
+            return currentStage; // Não volta se não encontrar ou se já for a primeira
+        }
+        return this.stageOrder[currentIndex - 1].id;
+    }
+    
+    // Obter nome da etapa pelo ID
+    getStageName(stageId) {
+        const stage = this.stageOrder.find(s => s.id === parseInt(stageId));
+        return stage ? stage.name : `Etapa ${stageId}`;
+    }
+
+    async handleMassAction(action) {
+        if (this.selectedLeads.size === 0) {
+            alert('Nenhum lead selecionado');
+            return;
+        }
+
+        this.debugLog(`Iniciando ação em massa: ${action} para ${this.selectedLeads.size} leads`, 'info');
+        
+        const selectedIds = Array.from(this.selectedLeads);
+        const selectedLeadsData = this.filteredLeads.filter(lead => selectedIds.includes(lead.id));
+        
+        // Mostrar barra de progresso
+        this.showProgressBar(action, selectedLeadsData.length);
+        
+        let actionText = '';
+        let targetStage = null;
+        
+        switch (action) {
+            case 'next':
+                actionText = 'Avançando etapas';
+                break;
+            case 'prev':
+                actionText = 'Retrocedendo etapas';
+                break;
+            case 'set':
+                actionText = 'Definindo etapas';
+                targetStage = document.getElementById('targetStageSelect')?.value;
+                if (!targetStage) {
+                    this.hideProgressBar();
+                    alert('Selecione uma etapa de destino');
+                    return;
+                }
+                break;
+            case 'delete':
+                actionText = 'Excluindo leads';
+                if (!confirm(`Tem certeza que deseja excluir ${selectedLeadsData.length} leads?`)) {
+                    this.hideProgressBar();
+                    return;
+                }
+                break;
+        }
+
+        // Executar ação diretamente com progresso
+        await this.executeMassAction(action, selectedLeadsData, targetStage);
+    }
+    
+    async executeMassAction(action, selectedLeadsData, targetStage = null) {
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (let i = 0; i < selectedLeadsData.length; i++) {
+            const lead = selectedLeadsData[i];
+            
+            try {
+                let newStage = lead.etapa_atual;
+                
+                switch (action) {
+                    case 'next':
+                        newStage = this.getNextStage(lead.etapa_atual);
+                        break;
+                    case 'prev':
+                        newStage = this.getPreviousStage(lead.etapa_atual);
+                        break;
+                    case 'set':
+                        newStage = parseInt(targetStage);
+                        break;
+                    case 'delete':
+                        // Remover do array
+                        const leadIndex = this.allLeads.findIndex(l => l.id === lead.id);
+                        if (leadIndex !== -1) {
+                            this.allLeads.splice(leadIndex, 1);
+                        }
+                        
+                        // Remover do localStorage
+                        const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+                        const updatedLeads = leads.filter(l => l.id !== lead.id);
+                        localStorage.setItem('leads', JSON.stringify(updatedLeads));
+                        
+                        successCount++;
+                        this.updateProgressBar(i + 1, selectedLeadsData.length);
+                        continue;
+                }
+                
+                // Atualizar etapa se não for delete
+                if (action !== 'delete' && newStage !== lead.etapa_atual) {
+                    lead.etapa_atual = newStage;
+                    lead.updated_at = new Date().toISOString();
+                    
+                    // Atualizar no localStorage
+                    const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+                    const leadIndex = leads.findIndex(l => l.id === lead.id);
+                    if (leadIndex !== -1) {
+                        leads[leadIndex] = { ...leads[leadIndex], ...lead };
+                        localStorage.setItem('leads', JSON.stringify(leads));
+                    }
+                    
+                    this.debugLog(`Lead ${lead.nome_completo} atualizado para etapa ${newStage} (${this.getStageName(newStage)})`, 'info');
+                }
+                
+                successCount++;
+                
+            } catch (error) {
+                errorCount++;
+                this.debugLog(`Erro ao processar lead ${lead.nome_completo}: ${error.message}`, 'error');
+            }
+            
+            // Atualizar progresso
+            this.updateProgressBar(i + 1, selectedLeadsData.length);
+            
+            // Pequeno delay para suavizar a execução
+            if (i % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+        
+        // Finalizar progresso
+        this.finishProgressBar(successCount, errorCount);
+        
+        // Limpar seleção e atualizar lista
+        this.selectedLeads.clear();
+        this.updateMassActionButtons();
+        this.refreshLeads();
+        
+        this.debugLog(`Ação em massa concluída: ${successCount} sucessos, ${errorCount} erros`, successCount > 0 ? 'info' : 'error');
+    }
+    
+    showProgressBar(action, total) {
+        // Remover barra existente se houver
+        this.hideProgressBar();
+        
+        const progressBar = document.createElement('div');
+        progressBar.id = 'massActionProgressBar';
+        progressBar.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #345C7A;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease;
+        `;
+        
+        let actionText = '';
+        switch (action) {
+            case 'next': actionText = 'Avançando etapas'; break;
+            case 'prev': actionText = 'Retrocedendo etapas'; break;
+            case 'set': actionText = 'Definindo etapas'; break;
+            case 'delete': actionText = 'Excluindo leads'; break;
+        }
+        
+        progressBar.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                <i class="fas fa-cog fa-spin" style="color: #345C7A; font-size: 1.2rem;"></i>
+                <div>
+                    <div style="font-weight: 600; color: #345C7A; font-size: 1rem;">${actionText}...</div>
+                    <div id="progressText" style="color: #666; font-size: 0.9rem;">0 de ${total} concluídos</div>
+                </div>
+                <button id="cancelMassAction" style="
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                    margin-left: auto;
+                ">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="background: #e9ecef; border-radius: 8px; height: 8px; overflow: hidden;">
+                <div id="progressFill" style="
+                    background: linear-gradient(45deg, #345C7A, #2c4a63);
+                    height: 100%;
+                    width: 0%;
+                    transition: width 0.3s ease;
+                "></div>
+            </div>
+        `;
+        
+        document.body.appendChild(progressBar);
+        
+        // Configurar botão de cancelar
+        document.getElementById('cancelMassAction')?.addEventListener('click', () => {
+            this.hideProgressBar();
+            this.debugLog('Ação em massa cancelada pelo usuário', 'info');
+        });
+        
+        // Adicionar CSS de animação se não existir
+        if (!document.getElementById('progressAnimations')) {
+            const style = document.createElement('style');
+            style.id = 'progressAnimations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    updateProgressBar(current, total) {
+        const progressText = document.getElementById('progressText');
+        const progressFill = document.getElementById('progressFill');
+        
+        if (progressText && progressFill) {
+            const percentage = (current / total) * 100;
+            progressText.textContent = `${current} de ${total} concluídos`;
+            progressFill.style.width = `${percentage}%`;
+        }
+    }
+    
+    finishProgressBar(successCount, errorCount) {
+        const progressBar = document.getElementById('massActionProgressBar');
+        if (!progressBar) return;
+        
+        // Mostrar resultado final
+        progressBar.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; text-align: center;">
+                <i class="fas fa-check-circle" style="color: #27ae60; font-size: 1.5rem;"></i>
+                <div>
+                    <div style="font-weight: 600; color: #27ae60; font-size: 1rem;">Concluído!</div>
+                    <div style="color: #666; font-size: 0.9rem;">
+                        ${successCount} sucessos${errorCount > 0 ? `, ${errorCount} erros` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remover após 2 segundos
+        setTimeout(() => {
+            this.hideProgressBar();
+        }, 2000);
+    }
+    
+    hideProgressBar() {
+        const progressBar = document.getElementById('massActionProgressBar');
+        if (progressBar) {
+            progressBar.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (progressBar.parentNode) {
+                    progressBar.remove();
+                }
+            }, 300);
+        }
     }
 
     setupEditModal() {
@@ -2053,10 +2387,6 @@ class AdminPanel {
     async handleAddLead(e) {
         e.preventDefault();
         // Implementar adição de lead individual
-    }
-
-    async handleMassAction(action) {
-        // Implementar ações em massa
     }
 
     // Função para editar lead
