@@ -35,6 +35,13 @@ class AdminPanel {
             this.startAutoUpdate();
             this.setupMassSelectionControls();
             this.setupDebugSystem();
+            
+            // Configurar eventos dos botões de ação
+            this.setupActionButtons();
+            
+            // Configurar eventos do modal de edição
+            this.setupEditModal();
+            
             console.log('✅ AdminPanel configurado com sucesso');
         } catch (error) {
             console.error('❌ Erro na inicialização do AdminPanel:', error);
@@ -142,6 +149,69 @@ class AdminPanel {
 
         // Modais
         this.setupModalEvents();
+    }
+
+    setupEditModal() {
+        const editModal = document.getElementById('editModal');
+        const closeEditModal = document.getElementById('closeEditModal');
+        const cancelEdit = document.getElementById('cancelEdit');
+        const editForm = document.getElementById('editForm');
+
+        // Fechar modal
+        if (closeEditModal) {
+            closeEditModal.addEventListener('click', () => {
+                this.closeEditModal();
+            });
+        }
+
+        if (cancelEdit) {
+            cancelEdit.addEventListener('click', () => {
+                this.closeEditModal();
+            });
+        }
+
+        // Fechar ao clicar fora
+        if (editModal) {
+            editModal.addEventListener('click', (e) => {
+                if (e.target === editModal) {
+                    this.closeEditModal();
+                }
+            });
+        }
+
+        // Submissão do formulário de edição
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveEditedLead();
+            });
+        }
+
+        this.debugLog('info', 'Modal de edição configurado', 'setupEditModal');
+    }
+
+    setupActionButtons() {
+        // Botão de atualizar
+        const refreshButton = document.getElementById('refreshButton');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                this.refreshLeads();
+            });
+        }
+
+        // Configurar eventos de edição na tabela (delegação de eventos)
+        const leadsTable = document.getElementById('leadsTable');
+        if (leadsTable) {
+            leadsTable.addEventListener('click', (e) => {
+                if (e.target.classList.contains('edit-button') || e.target.closest('.edit-button')) {
+                    const button = e.target.classList.contains('edit-button') ? e.target : e.target.closest('.edit-button');
+                    const leadId = button.dataset.leadId;
+                    if (leadId) {
+                        this.editLead(leadId);
+                    }
+                }
+            });
+        }
     }
 
     setupMassSelectionControls() {
@@ -583,24 +653,33 @@ class AdminPanel {
     }
 
     selectAllLeads() {
-        console.log('📋 Selecionando todos os leads visíveis...');
-        
-        // Marcar checkbox principal
-        const selectAllCheckbox = document.getElementById('selectAllLeads');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = true;
+        try {
+            this.debugLog('info', 'Selecionando todos os leads da página atual', 'selectAllLeads');
+            
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][data-lead-id]');
+            let selectedCount = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (!checkbox.checked) {
+                    checkbox.checked = true;
+                    selectedCount++;
+                }
+            });
+            
+            // Atualizar checkbox "selecionar todos"
+            const selectAllCheckbox = document.getElementById('selectAllLeads');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = true;
+            }
+            
+            // Atualizar contadores
+            this.updateMassActionButtons();
+            
+            this.debugLog('info', `${selectedCount} leads selecionados`, 'selectAllLeads');
+            
+        } catch (error) {
+            this.debugLog('error', `Erro ao selecionar todos: ${error.message}`, 'selectAllLeads');
         }
-
-        // Marcar todos os checkboxes individuais
-        const checkboxes = document.querySelectorAll('.lead-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = true;
-        });
-
-        // Atualizar contadores
-        this.updateMassActionButtons();
-        
-        console.log(`✅ ${checkboxes.length} leads selecionados`);
     }
 
     showProgressBar(operation, total) {
@@ -1971,8 +2050,190 @@ class AdminPanel {
         // Implementar ações em massa
     }
 
-    async editLead(leadId) {
-        // Implementar edição de lead
+    // Função para editar lead
+    editLead(leadId) {
+        try {
+            this.debugLog('info', `Iniciando edição do lead: ${leadId}`, 'editLead');
+            
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const lead = leads.find(l => l.id === leadId);
+            
+            if (!lead) {
+                this.debugLog('error', `Lead não encontrado: ${leadId}`, 'editLead');
+                alert('Lead não encontrado');
+                return;
+            }
+
+            this.debugLog('info', `Lead encontrado: ${lead.nome_completo}`, 'editLead');
+            
+            // Preencher formulário de edição
+            this.fillEditForm(lead);
+            
+            // Armazenar ID do lead sendo editado
+            this.currentEditingLeadId = leadId;
+            
+            // Mostrar modal
+            this.showEditModal();
+            
+            this.debugLog('info', 'Modal de edição aberto com sucesso', 'editLead');
+            
+        } catch (error) {
+            this.debugLog('error', `Erro ao editar lead: ${error.message}`, 'editLead');
+            alert('Erro ao carregar dados do lead');
+        }
+    }
+
+    fillEditForm(lead) {
+        try {
+            const fields = {
+                'editName': lead.nome_completo || '',
+                'editCPF': lead.cpf || '',
+                'editEmail': lead.email || '',
+                'editPhone': lead.telefone || '',
+                'editAddress': lead.endereco || '',
+                'editStage': lead.etapa_atual || 1
+            };
+
+            Object.entries(fields).forEach(([fieldId, value]) => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.value = value;
+                } else {
+                    this.debugLog('warning', `Campo não encontrado: ${fieldId}`, 'fillEditForm');
+                }
+            });
+
+            // Definir data/hora atual para a etapa
+            const now = new Date();
+            const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            const dateTimeField = document.getElementById('editStageDateTime');
+            if (dateTimeField) {
+                dateTimeField.value = localDateTime;
+            }
+
+            this.debugLog('info', 'Formulário de edição preenchido', 'fillEditForm');
+        } catch (error) {
+            this.debugLog('error', `Erro ao preencher formulário: ${error.message}`, 'fillEditForm');
+        }
+    }
+
+    showEditModal() {
+        const modal = document.getElementById('editModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            this.debugLog('info', 'Modal de edição exibido', 'showEditModal');
+        } else {
+            this.debugLog('error', 'Modal de edição não encontrado no DOM', 'showEditModal');
+        }
+    }
+
+    closeEditModal() {
+        const modal = document.getElementById('editModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            this.currentEditingLeadId = null;
+            this.debugLog('info', 'Modal de edição fechado', 'closeEditModal');
+        }
+    }
+
+    saveEditedLead() {
+        try {
+            if (!this.currentEditingLeadId) {
+                this.debugLog('error', 'ID do lead sendo editado não encontrado', 'saveEditedLead');
+                alert('Erro: ID do lead não encontrado');
+                return;
+            }
+
+            this.debugLog('info', `Salvando edições do lead: ${this.currentEditingLeadId}`, 'saveEditedLead');
+
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const leadIndex = leads.findIndex(l => l.id === this.currentEditingLeadId);
+            
+            if (leadIndex === -1) {
+                this.debugLog('error', `Lead não encontrado para salvar: ${this.currentEditingLeadId}`, 'saveEditedLead');
+                alert('Lead não encontrado');
+                return;
+            }
+
+            // Coletar dados do formulário
+            const updatedData = {
+                nome_completo: document.getElementById('editName').value.trim(),
+                cpf: document.getElementById('editCPF').value.trim(),
+                email: document.getElementById('editEmail').value.trim(),
+                telefone: document.getElementById('editPhone').value.trim(),
+                endereco: document.getElementById('editAddress').value.trim(),
+                etapa_atual: parseInt(document.getElementById('editStage').value),
+                updated_at: new Date().toISOString()
+            };
+
+            // Validações básicas
+            if (!updatedData.nome_completo) {
+                this.debugLog('warning', 'Nome completo é obrigatório', 'saveEditedLead');
+                alert('Nome completo é obrigatório');
+                return;
+            }
+
+            if (!updatedData.cpf || updatedData.cpf.replace(/[^\d]/g, '').length !== 11) {
+                this.debugLog('warning', 'CPF inválido', 'saveEditedLead');
+                alert('CPF deve ter 11 dígitos');
+                return;
+            }
+
+            // Atualizar lead
+            leads[leadIndex] = { ...leads[leadIndex], ...updatedData };
+            
+            // Salvar no localStorage
+            localStorage.setItem('leads', JSON.stringify(leads));
+            
+            this.debugLog('info', `Lead atualizado com sucesso: ${updatedData.nome_completo}`, 'saveEditedLead');
+            
+            // Fechar modal
+            this.closeEditModal();
+            
+            // Atualizar lista
+            this.refreshLeads();
+            
+            // Mostrar confirmação
+            this.showSuccessMessage('Lead atualizado com sucesso!');
+            
+        } catch (error) {
+            this.debugLog('error', `Erro ao salvar lead editado: ${error.message}`, 'saveEditedLead');
+            alert('Erro ao salvar alterações');
+        }
+    }
+
+    showSuccessMessage(message) {
+        // Criar notificação de sucesso
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            font-weight: 600;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+        `;
+        
+        notification.innerHTML = `
+            <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+            ${message}
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
     }
 
     async nextStage(leadId) {
@@ -2131,137 +2392,6 @@ class AdminPanel {
         }
     }
     
-    showProgressBar(action, total) {
-        // Remover barra existente se houver
-        this.hideProgressBar();
-        
-        const actionNames = {
-            next: 'Avançando etapas',
-            prev: 'Retrocedendo etapas', 
-            setStage: 'Definindo etapas',
-            delete: 'Excluindo leads'
-        };
-        
-        const progressBar = document.createElement('div');
-        progressBar.id = 'massActionProgressBar';
-        progressBar.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 320px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            z-index: 10000;
-            animation: slideInRight 0.3s ease;
-            border: 2px solid #345C7A;
-        `;
-        
-        progressBar.innerHTML = `
-            <div style="
-                padding: 15px 20px;
-                border-bottom: 1px solid #e9ecef;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            ">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-cog fa-spin" style="color: #345C7A;"></i>
-                    <span style="font-weight: 600; color: #345C7A;">
-                        ${actionNames[action] || 'Processando'}...
-                    </span>
-                </div>
-                <button id="cancelMassActionBtn" style="
-                    background: #e74c3c;
-                    color: white;
-                    border: none;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 12px;
-                ">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div style="padding: 15px 20px;">
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 10px;
-                ">
-                    <span id="progressText" style="font-size: 14px; color: #666;">
-                        0 de ${total} concluídos
-                    </span>
-                    <span id="progressPercent" style="font-size: 14px; font-weight: 600; color: #345C7A;">
-                        0%
-                    </span>
-                </div>
-                
-                <div style="
-                    width: 100%;
-                    height: 8px;
-                    background: #e9ecef;
-                    border-radius: 4px;
-                    overflow: hidden;
-                ">
-                    <div id="progressFill" style="
-                        width: 0%;
-                        height: 100%;
-                        background: linear-gradient(45deg, #345C7A, #2c4a63);
-                        transition: width 0.3s ease;
-                        border-radius: 4px;
-                    "></div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(progressBar);
-        
-        // Configurar botão cancelar
-        document.getElementById('cancelMassActionBtn')?.addEventListener('click', () => {
-            this.cancelMassAction = true;
-            this.hideProgressBar();
-        });
-        
-        // Adicionar CSS de animação se não existir
-        if (!document.getElementById('progressAnimations')) {
-            const style = document.createElement('style');
-            style.id = 'progressAnimations';
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOutRight {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-                @keyframes successPulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
-                    100% { transform: scale(1); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-    
-    updateProgressBar(current, total, action) {
-        const progressText = document.getElementById('progressText');
-        const progressPercent = document.getElementById('progressPercent');
-        const progressFill = document.getElementById('progressFill');
-        
-        if (progressText && progressPercent && progressFill) {
-            const percentage = Math.round((current / total) * 100);
-            
-            progressText.textContent = `${current} de ${total} concluídos`;
-            progressPercent.textContent = `${percentage}%`;
-            progressFill.style.width = `${percentage}%`;
-        }
-    }
-    
     finishProgressBar(successCount, errorCount) {
         const progressBar = document.getElementById('massActionProgressBar');
         if (!progressBar) return;
@@ -2294,18 +2424,6 @@ class AdminPanel {
         setTimeout(() => {
             this.hideProgressBar();
         }, 2000);
-    }
-    
-    hideProgressBar() {
-        const progressBar = document.getElementById('massActionProgressBar');
-        if (progressBar) {
-            progressBar.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => {
-                if (progressBar.parentNode) {
-                    progressBar.remove();
-                }
-            }, 300);
-        }
     }
     
     // Método para limpar seleções
@@ -2348,24 +2466,109 @@ class AdminPanel {
         this.debug(`Selecionados todos os ${checkboxes.length} leads da página atual`, 'selectAllCurrentPageLeads', 'info');
     }
     
-    // Método para desmarcar todos
-    deselectAllLeads() {
-        this.clearSelectedLeads();
-        this.debug('Todos os leads foram desmarcados', 'deselectAllLeads', 'info');
-    }
-    
     // Sobrescrever método de ação em massa para usar nova lógica
     async executeMassAction(action, targetStage = null) {
-        const selectedIds = Array.from(this.selectedLeads);
-        
-        if (selectedIds.length === 0) {
-            this.debug('Tentativa de ação em massa sem seleções', 'executeMassAction', 'warning');
-            alert('Selecione pelo menos um lead para executar esta ação.');
-            return;
+        try {
+            const selectedLeads = Array.from(this.selectedLeads);
+            
+            if (selectedLeads.length === 0) {
+                alert('Selecione pelo menos um lead para executar esta ação.');
+                return;
+            }
+            
+            this.debugLog('info', `Iniciando ação em massa: ${action} em ${selectedLeads.length} leads`, 'executeMassAction');
+            
+            // Mostrar barra de progresso
+            const operationNames = {
+                'next': 'Avançando etapas...',
+                'prev': 'Retrocedendo etapas...',
+                'set': 'Definindo etapas...',
+                'delete': 'Excluindo leads...'
+            };
+            
+            this.showProgressBar(operationNames[action] || 'Processando...', selectedLeads.length);
+            this.cancelMassOperation = false;
+            
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (let i = 0; i < selectedLeads.length; i++) {
+                // Verificar se operação foi cancelada
+                if (this.cancelMassOperation) {
+                    this.debugLog('info', 'Operação cancelada pelo usuário', 'executeMassAction');
+                    break;
+                }
+                
+                const leadId = selectedLeads[i];
+                const leadIndex = leads.findIndex(l => l.id === leadId);
+                
+                if (leadIndex !== -1) {
+                    try {
+                        switch (action) {
+                            case 'next':
+                                if (leads[leadIndex].etapa_atual < 16) {
+                                    leads[leadIndex].etapa_atual++;
+                                    leads[leadIndex].updated_at = new Date().toISOString();
+                                    successCount++;
+                                }
+                                break;
+                            case 'prev':
+                                if (leads[leadIndex].etapa_atual > 1) {
+                                    leads[leadIndex].etapa_atual--;
+                                    leads[leadIndex].updated_at = new Date().toISOString();
+                                    successCount++;
+                                }
+                                break;
+                            case 'set':
+                                if (targetStage) {
+                                    leads[leadIndex].etapa_atual = parseInt(targetStage);
+                                    leads[leadIndex].updated_at = new Date().toISOString();
+                                    successCount++;
+                                }
+                                break;
+                            case 'delete':
+                                leads.splice(leadIndex, 1);
+                                successCount++;
+                                break;
+                        }
+                    } catch (error) {
+                        errorCount++;
+                        this.debugLog('error', `Erro ao processar lead ${leadId}: ${error.message}`, 'executeMassAction');
+                    }
+                }
+                
+                // Atualizar barra de progresso
+                this.updateProgressBar(i + 1, selectedLeads.length);
+                
+                // Pequeno delay para não travar a interface
+                if (i % 10 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            // Salvar alterações
+            localStorage.setItem('leads', JSON.stringify(leads));
+            
+            // Mostrar resultado
+            if (!this.cancelMassOperation) {
+                this.showOperationSuccess(`✅ ${successCount} leads processados com sucesso!`);
+            }
+            
+            this.debugLog('info', `Ação em massa concluída: ${successCount} sucessos, ${errorCount} erros`, 'executeMassAction');
+            
+            // Atualizar lista e limpar seleções
+            await this.refreshLeads();
+            this.clearSelectedLeads();
+            
+            // Mostrar resultado final
+            alert(`Operação concluída!\nSucessos: ${successCount}\nErros: ${errorCount}`);
+            
+        } catch (error) {
+            this.hideProgressBar();
+            this.debugLog('error', `Erro na ação em massa: ${error.message}`, 'executeMassAction');
+            alert('Erro ao executar ação em massa');
         }
-        
-        // Usar nova lógica com progresso
-        await this.performMassAction(action, selectedIds, targetStage);
     }
 
     async createLead(leadData) {
