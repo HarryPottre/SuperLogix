@@ -28,6 +28,7 @@ class AdminPanel {
             await this.setupEventListeners();
             await this.loadLeads();
             this.startAutoUpdate();
+            this.setupMassSelectionControls();
             console.log('✅ AdminPanel configurado com sucesso');
         } catch (error) {
             console.error('❌ Erro na inicialização do AdminPanel:', error);
@@ -135,6 +136,174 @@ class AdminPanel {
 
         // Modais
         this.setupModalEvents();
+    }
+
+    setupMassSelectionControls() {
+        // Botão Selecionar Todos
+        const selectAllButton = document.getElementById('selectAllLeadsButton');
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                this.selectAllLeads();
+            });
+        }
+
+        // Botão Desmarcar Todos
+        const deselectAllButton = document.getElementById('deselectAllLeadsButton');
+        if (deselectAllButton) {
+            deselectAllButton.addEventListener('click', () => {
+                this.deselectAllLeads();
+            });
+        }
+    }
+
+    selectAllLeads() {
+        console.log('📋 Selecionando todos os leads visíveis...');
+        
+        // Marcar checkbox principal
+        const selectAllCheckbox = document.getElementById('selectAllLeads');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+        }
+
+        // Marcar todos os checkboxes individuais
+        const checkboxes = document.querySelectorAll('.lead-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+
+        // Atualizar contadores
+        this.updateMassActionButtons();
+        
+        console.log(`✅ ${checkboxes.length} leads selecionados`);
+    }
+
+    deselectAllLeads() {
+        console.log('🔄 Desmarcando todos os leads...');
+        
+        // Desmarcar checkbox principal
+        const selectAllCheckbox = document.getElementById('selectAllLeads');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+        }
+
+        // Desmarcar todos os checkboxes individuais
+        const checkboxes = document.querySelectorAll('.lead-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        // Atualizar contadores
+        this.updateMassActionButtons();
+        
+        console.log('✅ Todos os leads desmarcados');
+    }
+
+    showProgressBar(operation, total) {
+        // Remover barra existente se houver
+        this.hideProgressBar();
+
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'massActionProgressBar';
+        progressContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #345C7A;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(52, 92, 122, 0.3);
+            z-index: 9999;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease;
+        `;
+
+        progressContainer.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                <i class="fas fa-cogs" style="color: #345C7A; font-size: 1.2rem; animation: spin 1s linear infinite;"></i>
+                <div>
+                    <div style="font-weight: 600; color: #345C7A; font-size: 1rem;">${operation}</div>
+                    <div id="progressText" style="color: #666; font-size: 0.9rem;">Iniciando...</div>
+                </div>
+            </div>
+            <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden;">
+                <div id="progressFill" style="
+                    background: linear-gradient(45deg, #345C7A, #2c4a63);
+                    height: 100%;
+                    width: 0%;
+                    transition: width 0.3s ease;
+                    border-radius: 10px;
+                "></div>
+            </div>
+        `;
+
+        document.body.appendChild(progressContainer);
+
+        // Adicionar CSS de animação se não existir
+        if (!document.getElementById('progressAnimations')) {
+            const style = document.createElement('style');
+            style.id = 'progressAnimations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        return {
+            update: (current, total) => {
+                const progressFill = document.getElementById('progressFill');
+                const progressText = document.getElementById('progressText');
+                
+                if (progressFill && progressText) {
+                    const percentage = (current / total) * 100;
+                    progressFill.style.width = `${percentage}%`;
+                    progressText.textContent = `${current} de ${total} concluídos`;
+                }
+            },
+            complete: () => {
+                const progressContainer = document.getElementById('massActionProgressBar');
+                if (progressContainer) {
+                    // Mostrar ícone de sucesso
+                    progressContainer.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 12px; text-align: center;">
+                            <i class="fas fa-check-circle" style="color: #27ae60; font-size: 1.5rem;"></i>
+                            <div>
+                                <div style="font-weight: 600; color: #27ae60; font-size: 1rem;">Concluído!</div>
+                                <div style="color: #666; font-size: 0.9rem;">Operação finalizada com sucesso</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Remover após 2 segundos
+                    setTimeout(() => {
+                        this.hideProgressBar();
+                    }, 2000);
+                }
+            }
+        };
+    }
+
+    hideProgressBar() {
+        const progressContainer = document.getElementById('massActionProgressBar');
+        if (progressContainer) {
+            progressContainer.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (progressContainer.parentNode) {
+                    progressContainer.remove();
+                }
+            }, 300);
+        }
     }
 
     setupBulkImportEvents() {
@@ -790,6 +959,94 @@ class AdminPanel {
             previewSection.style.display = 'none';
         }
         this.bulkImportData = [];
+    }
+
+    async executeMassAction(action, selectedLeads, targetStage = null) {
+        console.log(`🚀 Executando ação em massa: ${action} para ${selectedLeads.length} leads`);
+        
+        // Mostrar barra de progresso
+        const operationNames = {
+            'next': 'Avançando Etapas',
+            'prev': 'Retrocedendo Etapas', 
+            'set': 'Definindo Etapas',
+            'delete': 'Excluindo Leads'
+        };
+        
+        const progressBar = this.showProgressBar(
+            operationNames[action] || 'Processando',
+            selectedLeads.length
+        );
+
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        
+        // Processar leads um por um
+        for (let i = 0; i < selectedLeads.length; i++) {
+            const lead = selectedLeads[i];
+            
+            // Atualizar progresso
+            progressBar.update(i + 1, selectedLeads.length);
+            
+            try {
+                let success = false;
+                
+                switch (action) {
+                    case 'next':
+                        success = await this.nextStage(lead.id);
+                        break;
+                    case 'prev':
+                        success = await this.prevStage(lead.id);
+                        break;
+                    case 'set':
+                        success = await this.setStage(lead.id, targetStage);
+                        break;
+                    case 'delete':
+                        success = await this.deleteLead(lead.id);
+                        break;
+                }
+                
+                if (success) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    errors.push({
+                        lead: lead.nome_completo,
+                        error: 'Operação falhou'
+                    });
+                }
+            } catch (error) {
+                console.error(`❌ Erro ao processar lead ${lead.id}:`, error);
+                errorCount++;
+                errors.push({
+                    lead: lead.nome_completo,
+                    error: error.message
+                });
+            }
+            
+            // Pequeno delay para suavizar a interface
+            if (i % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+        
+        // Finalizar barra de progresso
+        progressBar.complete();
+        
+        console.log(`✅ Ação em massa concluída: ${successCount} sucessos, ${errorCount} erros`);
+        
+        // Atualizar lista
+        await this.refreshLeads();
+        
+        // Limpar seleções
+        this.clearAllSelections();
+        
+        // Mostrar resultado
+        if (errorCount > 0) {
+            alert(`Operação concluída com ${errorCount} erros. Verifique o console para detalhes.`);
+        } else {
+            console.log(`🎉 Operação concluída com sucesso para todos os ${successCount} leads`);
+        }
     }
 
     // Resto das funções mantidas como estavam...
