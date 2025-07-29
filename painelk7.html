@@ -562,6 +562,145 @@
             color: #ccc;
             margin-bottom: 20px;
         }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        .mass-actions-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e9ecef;
+        }
+        
+        .mass-action-button:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+        
+        .mass-action-button:not(:disabled):hover {
+            background: #2c4a63 !important;
+            transform: translateY(-1px) !important;
+        }
+        
+        /* Estilos de Paginação */
+        .pagination-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            border-radius: 0 0 12px 12px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .pagination-btn {
+            background: #345C7A;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: #2c4a63;
+            transform: translateY(-1px);
+        }
+        
+        .pagination-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+        }
+        
+        .page-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .per-page-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .per-page-select {
+            padding: 6px 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        .per-page-select:focus {
+            outline: none;
+            border-color: #345C7A;
+        }
+        
+        .pagination-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+            .pagination-section {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            
+            .pagination-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            
+            .pagination-buttons {
+                justify-content: space-between;
+            }
+            
+            .per-page-selector {
+                justify-content: center;
+            }
+            
+            .pagination-info {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1069,17 +1208,27 @@
                             </tbody>
                         </table>
                         
-                        <!-- Paginação -->
-                        <div class="pagination-section" id="paginationControls">
-                            <!-- Controles de paginação serão inseridos aqui -->
-                        </div>
-                        
                         <div class="empty-state" id="emptyState" style="display: none;">
                             <i class="fas fa-inbox"></i>
                             <h3>Nenhum lead encontrado</h3>
                             <p>Os leads aparecerão aqui conforme forem criados no sistema de rastreamento.</p>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Controles de Paginação -->
+                <div class="pagination-section" id="paginationControls" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 20px 25px;
+                    background: #f8f9fa;
+                    border-top: 1px solid #e1e5e9;
+                    border-radius: 0 0 12px 12px;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                ">
+                    <!-- Controles serão inseridos dinamicamente -->
                 </div>
             </div>
         </div>
@@ -1192,37 +1341,5 @@
     </div>
 
     <script type="module" src="src/pages/admin-panel.jsx"></script>
-    
-    <!-- Add required CSS animations -->
-    <style>
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        @keyframes slideOutRight {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        
-        .mass-actions-container {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e9ecef;
-        }
-        
-        .mass-action-button:disabled {
-            opacity: 0.5 !important;
-            cursor: not-allowed !important;
-        }
-        
-        .mass-action-button:not(:disabled):hover {
-            background: #2c4a63 !important;
-            transform: translateY(-1px) !important;
-        }
-    </style>
 </body>
 </html>
