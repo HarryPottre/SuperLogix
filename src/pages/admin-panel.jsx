@@ -912,6 +912,7 @@ class AdminPanel {
         const tableBody = document.getElementById('leadsTableBody');
         const leadsCount = document.getElementById('leadsCount');
         const emptyState = document.getElementById('emptyState');
+        const paginationControls = document.getElementById('paginationControls');
 
         if (!tableBody) return;
 
@@ -938,10 +939,12 @@ class AdminPanel {
         if (paginatedLeads.length === 0) {
             tableBody.innerHTML = '';
             if (emptyState) emptyState.style.display = 'block';
+            if (paginationControls) paginationControls.style.display = 'none';
             return;
         }
 
         if (emptyState) emptyState.style.display = 'none';
+        if (paginationControls) paginationControls.style.display = 'flex';
 
         // Renderizar leads
         tableBody.innerHTML = paginatedLeads.map(lead => {
@@ -1116,7 +1119,90 @@ class AdminPanel {
     }
 
     updatePaginationControls() {
-        // Implementar controles de paginação se necessário
+        const paginationControls = document.getElementById('paginationControls');
+        if (!paginationControls) return;
+
+        const totalPages = Math.ceil(this.filteredLeads.length / this.leadsPerPage);
+        const startRecord = (this.currentPage - 1) * this.leadsPerPage + 1;
+        const endRecord = Math.min(this.currentPage * this.leadsPerPage, this.filteredLeads.length);
+
+        paginationControls.innerHTML = `
+            <div class="pagination-info">
+                <span style="color: #666; font-size: 0.9rem;">
+                    Exibindo ${startRecord}-${endRecord} de ${this.filteredLeads.length} leads
+                </span>
+            </div>
+            
+            <div class="pagination-controls">
+                <div class="pagination-buttons">
+                    <button 
+                        class="pagination-btn" 
+                        id="prevPageBtn"
+                        ${this.currentPage <= 1 ? 'disabled' : ''}
+                        onclick="adminPanel.goToPage(${this.currentPage - 1})"
+                    >
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    
+                    <div class="page-info">
+                        <span style="margin: 0 15px; font-weight: 600; color: #345C7A;">
+                            Página ${this.currentPage} de ${totalPages}
+                        </span>
+                    </div>
+                    
+                    <button 
+                        class="pagination-btn" 
+                        id="nextPageBtn"
+                        ${this.currentPage >= totalPages ? 'disabled' : ''}
+                        onclick="adminPanel.goToPage(${this.currentPage + 1})"
+                    >
+                        Próximo <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="per-page-selector">
+                    <label for="leadsPerPageSelect" style="margin-right: 8px; color: #666; font-size: 0.9rem;">
+                        Leads por página:
+                    </label>
+                    <select 
+                        id="leadsPerPageSelect" 
+                        class="per-page-select"
+                        onchange="adminPanel.changeLeadsPerPage(this.value)"
+                    >
+                        <option value="20" ${this.leadsPerPage === 20 ? 'selected' : ''}>20</option>
+                        <option value="50" ${this.leadsPerPage === 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${this.leadsPerPage === 100 ? 'selected' : ''}>100</option>
+                        <option value="500" ${this.leadsPerPage === 500 ? 'selected' : ''}>500</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+
+    // Navegar para página específica
+    goToPage(page) {
+        const totalPages = Math.ceil(this.filteredLeads.length / this.leadsPerPage);
+        
+        if (page < 1 || page > totalPages) return;
+        
+        this.currentPage = page;
+        this.updateLeadsDisplay();
+        
+        console.log(`📄 Navegando para página ${page} de ${totalPages}`);
+    }
+
+    // Alterar número de leads por página
+    changeLeadsPerPage(newPerPage) {
+        const oldPerPage = this.leadsPerPage;
+        this.leadsPerPage = parseInt(newPerPage);
+        
+        // Recalcular página atual para manter posição aproximada
+        const currentFirstRecord = (this.currentPage - 1) * oldPerPage + 1;
+        this.currentPage = Math.ceil(currentFirstRecord / this.leadsPerPage);
+        
+        this.updateLeadsDisplay();
+        
+        console.log(`📊 Leads por página alterado: ${oldPerPage} → ${this.leadsPerPage}`);
     }
 
     setupModalEvents() {
