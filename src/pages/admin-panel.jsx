@@ -27,6 +27,15 @@ class AdminPanel {
         this.init();
     }
 
+    // Método debugLog para logging
+    debugLog(message, type = 'info', origin = 'AdminPanel') {
+        if (this.debugSystem) {
+            this.debugSystem.log(message, type, origin);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${origin}: ${message}`);
+        }
+    }
+
     async init() {
         try {
             await this.setupAuthentication();
