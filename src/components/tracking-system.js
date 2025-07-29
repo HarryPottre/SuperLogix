@@ -496,26 +496,43 @@ export class TrackingSystem {
     createTimelineItem(step, isLast) {
         const item = document.createElement('div');
         item.className = `timeline-item ${step.completed ? 'completed' : ''} ${isLast ? 'last' : ''}`;
-
-        // Usar data real de atualização do lead ou data atual
-        const stepDate = this.leadData && this.leadData.updated_at ? 
-                        new Date(this.leadData.updated_at) : 
-                        new Date();
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'all 0.5s ease';
         
-        const dateStr = stepDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-        const timeStr = stepDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
+        const dateStr = step.date instanceof Date ? 
+            step.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) :
+            step.date;
+        const timeStr = step.date instanceof Date ?
+            step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
+            step.time || '00:00';
+        
         let buttonHtml = '';
-        // Mostrar botão de liberação apenas na etapa 11 ou 12 (alfândega)
-        const currentStage = this.leadData ? this.leadData.etapa_atual : 11;
-        if ((step.id === 11 || step.id === 12) && currentStage <= 12) {
+        
+        // Botão de liberação alfandegária
+        if (step.needsLiberation && step.completed) {
             buttonHtml = `
                 <button class="liberation-button-timeline" data-step-id="${step.id}">
                     <i class="fas fa-unlock"></i> LIBERAR OBJETO
                 </button>
             `;
         }
-
+        
+        // Botão de tentativa de entrega
+        if (step.hasDeliveryButton && step.completed) {
+            const attemptNumber = this.getDeliveryAttemptNumber(step.id);
+            const deliveryValue = this.getDeliveryValue(attemptNumber);
+            
+            buttonHtml = `
+                <button class="liberation-button-timeline delivery-attempt-button" 
+                        data-step-id="${step.id}" 
+                        data-attempt="${attemptNumber}"
+                        data-value="${deliveryValue}">
+                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
+                </button>
+            `;
+        }
+        
         item.innerHTML = `
             <div class="timeline-dot"></div>
             <div class="timeline-content">
@@ -529,17 +546,381 @@ export class TrackingSystem {
                 </div>
             </div>
         `;
-
-        if ((step.id === 11 || step.id === 12) && currentStage <= 12) {
+        
+        // Configurar eventos dos botões
+        if (step.needsLiberation && step.completed) {
             const liberationButton = item.querySelector('.liberation-button-timeline');
-            if (liberationButton) {
+            if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
                 liberationButton.addEventListener('click', () => {
                     this.openLiberationModal();
                 });
             }
         }
-
+        
+        if (step.hasDeliveryButton && step.completed) {
+            const deliveryButton = item.querySelector('.delivery-attempt-button');
+            if (deliveryButton) {
+                deliveryButton.addEventListener('click', () => {
+                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                    const value = parseFloat(deliveryButton.dataset.value);
+                    this.openDeliveryModal(attemptNumber, value, deliveryButton);
+                });
+            }
+        }
+        
         return item;
+    }
+
+    getDeliveryAttemptNumber(stageId) {
+        const attemptMap = {
+            16: 1,   // 1ª tentativa
+            106: 2,  // 2ª tentativa  
+            116: 3,  // 3ª tentativa
+            126: 1   // Volta para 1ª (ciclo)
+        };
+        return attemptMap[stageId] || 1;
+    }
+
+    getDeliveryValue(attemptNumber) {
+        const values = [7.74, 12.38, 16.46];
+        return values[attemptNumber - 1] || 7.74;
+    }
+
+    // Nova função: Abrir modal de tentativa de entrega
+    async openDeliveryModal(attemptNumber, value, buttonElement) {
+        console.log(`🚚 Abrindo modal de ${attemptNumber}ª tentativa de entrega - R$ ${value.toFixed(2)}`);
+
+        // Mostrar loading
+        UIHelpers.showLoadingNotification();
+
+        try {
+            // Gerar PIX via Zentra Pay
+            const userData = {
+                nome: this.leadData?.nome_completo || this.userData?.nome || 'Cliente',
+                cpf: this.leadData?.cpf || this.currentCPF || '00000000000',
+                email: this.leadData?.email || 'cliente@email.com',
+                telefone: this.leadData?.telefone || '11999999999'
+            };
+
+            console.log('📡 Gerando PIX para tentativa de entrega:', { userData, value });
+
+            const pixResult = await this.zentraPayService.createPixTransaction(userData, value);
+
+            UIHelpers.closeLoadingNotification();
+
+            if (pixResult.success) {
+                console.log('✅ PIX de entrega gerado com sucesso');
+                this.showDeliveryPaymentModal(attemptNumber, value, pixResult, buttonElement);
+            } else {
+                throw new Error(pixResult.error || 'Erro ao gerar PIX');
+            }
+
+        } catch (error) {
+            console.error('❌ Erro ao gerar PIX de entrega:', error);
+            UIHelpers.closeLoadingNotification();
+            
+            // Mostrar modal estático como fallback
+            this.showDeliveryPaymentModal(attemptNumber, value, null, buttonElement);
+        }
+    }
+
+    showDeliveryPaymentModal(attemptNumber, value, pixData, buttonElement) {
+        // Criar modal de pagamento de entrega
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'deliveryPaymentModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+
+        // QR Code e PIX
+        let qrCodeSrc, pixPayload;
+        if (pixData && pixData.pixPayload) {
+            qrCodeSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData.pixPayload)}`;
+            pixPayload = pixData.pixPayload;
+        } else {
+            // Fallback estático
+            qrCodeSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+            pixPayload = '00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+        }
+
+        const customerName = this.leadData?.nome_completo || this.userData?.nome || 'Cliente';
+
+        modal.innerHTML = `
+            <div class="professional-modal-container">
+                <div class="professional-modal-header">
+                    <h2 class="professional-modal-title">${attemptNumber}ª Tentativa de Entrega</h2>
+                    <button class="professional-modal-close" id="closeDeliveryPaymentModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="professional-modal-content">
+                    <div class="liberation-explanation">
+                        <p class="liberation-subtitle">
+                            <strong>${customerName}</strong>, para reagendar a entrega do seu pedido, é necessário pagar a taxa de reenvio de <strong>R$ ${value.toFixed(2)}</strong>.
+                        </p>
+                    </div>
+
+                    <div class="professional-fee-display">
+                        <div class="fee-info">
+                            <span class="fee-label">Taxa de Reenvio - ${attemptNumber}ª Tentativa</span>
+                            <span class="fee-amount">R$ ${value.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div class="professional-pix-section">
+                        <h3 class="pix-section-title">Pagamento via Pix</h3>
+                        
+                        <div class="pix-content-grid">
+                            <div class="qr-code-section">
+                                <div class="qr-code-container">
+                                    <img src="${qrCodeSrc}" alt="QR Code PIX Entrega" class="professional-qr-code">
+                                </div>
+                            </div>
+                            
+                            <div class="pix-copy-section">
+                                <label class="pix-copy-label">PIX Copia e Cola</label>
+                                <div class="professional-copy-container">
+                                    <textarea id="deliveryPixCode" class="professional-pix-input" readonly>${pixPayload}</textarea>
+                                    <button class="professional-copy-button" id="copyDeliveryPixButton">
+                                        <i class="fas fa-copy"></i> Copiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="professional-payment-steps">
+                            <h4 class="steps-title">Como realizar o pagamento:</h4>
+                            <div class="payment-steps-grid">
+                                <div class="payment-step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-mobile-alt step-icon"></i>
+                                        <span class="step-text">Acesse seu app do banco</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-qrcode step-icon"></i>
+                                        <span class="step-text">Cole o código Pix ou escaneie o QR Code</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-check step-icon"></i>
+                                        <span class="step-text">Confirme o pagamento</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button id="simulateDeliveryPaymentButton" style="
+                                background: transparent;
+                                color: #666;
+                                border: 1px solid #ddd;
+                                padding: 6px 12px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                transition: all 0.3s ease;
+                                opacity: 0.7;
+                                font-size: 12px;
+                                min-width: 30px;
+                                height: 28px;
+                            ">
+                                -
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+        // Configurar eventos
+        this.setupDeliveryModalEvents(modal, attemptNumber, buttonElement);
+    }
+
+    setupDeliveryModalEvents(modal, attemptNumber, buttonElement) {
+        // Botão fechar
+        const closeButton = modal.querySelector('#closeDeliveryPaymentModal');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                this.closeDeliveryModal();
+            });
+        }
+
+        // Botão copiar
+        const copyButton = modal.querySelector('#copyDeliveryPixButton');
+        if (copyButton) {
+            copyButton.addEventListener('click', () => {
+                this.copyDeliveryPixCode();
+            });
+        }
+
+        // Botão de simulação
+        const simulateButton = modal.querySelector('#simulateDeliveryPaymentButton');
+        if (simulateButton) {
+            simulateButton.addEventListener('click', () => {
+                this.simulateDeliveryPayment(attemptNumber, buttonElement);
+            });
+        }
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeDeliveryModal();
+            }
+        });
+    }
+
+    copyDeliveryPixCode() {
+        const pixInput = document.getElementById('deliveryPixCode');
+        const copyButton = document.getElementById('copyDeliveryPixButton');
+        
+        if (!pixInput || !copyButton) return;
+
+        try {
+            pixInput.select();
+            pixInput.setSelectionRange(0, 99999);
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(pixInput.value).then(() => {
+                    this.showCopySuccess(copyButton);
+                });
+            } else {
+                document.execCommand('copy');
+                this.showCopySuccess(copyButton);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao copiar PIX:', error);
+        }
+    }
+
+    simulateDeliveryPayment(attemptNumber, buttonElement) {
+        console.log(`💳 Simulando pagamento da ${attemptNumber}ª tentativa de entrega`);
+        
+        // Fechar modal
+        this.closeDeliveryModal();
+        
+        // Ocultar botão atual
+        if (buttonElement) {
+            buttonElement.style.display = 'none';
+        }
+        
+        // Mostrar notificação de sucesso
+        this.showDeliverySuccessNotification(attemptNumber);
+        
+        // Iniciar próximo ciclo de entrega
+        setTimeout(() => {
+            this.startNextDeliveryCycle(attemptNumber);
+        }, 2000);
+    }
+
+    showDeliverySuccessNotification(attemptNumber) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Inter', sans-serif;
+            animation: slideInRight 0.5s ease, fadeOut 0.5s ease 4.5s forwards;
+        `;
+
+        notification.innerHTML = `
+            <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 2px;">Pagamento confirmado!</div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">${attemptNumber}ª tentativa reagendada.</div>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    }
+
+    startNextDeliveryCycle(completedAttempt) {
+        console.log(`🔄 Iniciando próximo ciclo após ${completedAttempt}ª tentativa`);
+        
+        // Determinar próxima tentativa (loop infinito: 1→2→3→1→2→3...)
+        const nextAttempt = completedAttempt >= 3 ? 1 : completedAttempt + 1;
+        const nextStageId = this.getNextDeliveryStageId(nextAttempt);
+        
+        console.log(`📦 Próxima tentativa será: ${nextAttempt}ª (Stage ID: ${nextStageId})`);
+        
+        // Etapas do ciclo de entrega
+        const deliveryCycle = [
+            { id: nextStageId - 3, title: 'Pedido sairá para entrega', delay: 0 },
+            { id: nextStageId - 2, title: 'Pedido em trânsito para entrega', delay: 2 * 60 * 1000 }, // 2 min
+            { id: nextStageId - 1, title: 'Pedido em rota de entrega', delay: 4 * 60 * 1000 }, // 4 min  
+            { id: nextStageId, title: `${nextAttempt}ª Tentativa de entrega`, delay: 6 * 60 * 1000, hasDeliveryButton: true } // 6 min
+        ];
+        
+        // Executar etapas com delays
+        deliveryCycle.forEach((stage) => {
+            setTimeout(() => {
+                this.addDeliveryStage(stage);
+            }, stage.delay);
+        });
+    }
+
+    getNextDeliveryStageId(attemptNumber) {
+        const stageMap = {
+            1: 16,   // 1ª tentativa
+            2: 106,  // 2ª tentativa
+            3: 116   // 3ª tentativa
+        };
+        return stageMap[attemptNumber] || 16;
+    }
+
+    closeDeliveryModal() {
+        const modal = document.getElementById('deliveryPaymentModal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+
+    async updateLeadStageInDatabase(newStage) {
+        if (this.currentCPF) {
+            try {
+                await this.dbService.updateLeadStage(this.currentCPF, newStage);
+                console.log(`✅ Etapa atualizada no banco: ${newStage}`);
+            } catch (error) {
+                console.error('❌ Erro ao atualizar etapa:', error);
+            }
+        }
     }
 
     highlightLiberationButton() {
@@ -887,41 +1268,58 @@ export class TrackingSystem {
         this.deliverySystem.startDeliveryFlow();
     }
 
-    // Método legado mantido para compatibilidade
+    // Adicionar etapas pós-pagamento
     addPostPaymentSteps() {
         const timeline = document.getElementById('trackingTimeline');
         if (!timeline) return;
 
-        const stageNames = this.getStageNames();
-        const nextStages = [12, 13, 14, 15, 16]; // Etapas pós-pagamento
+        console.log('🚀 Iniciando fluxo de entrega pós-pagamento...');
+        
+        const postPaymentStages = [
+            { id: 12, title: 'Pedido liberado na alfândega de importação', delay: 0 },
+            { id: 13, title: 'Pedido sairá para entrega', delay: 2 * 60 * 1000 }, // 2 minutos
+            { id: 14, title: 'Pedido em trânsito para entrega', delay: 2 * 60 * 60 * 1000 }, // 2 horas
+            { id: 15, title: 'Pedido em rota de entrega', delay: 4 * 60 * 60 * 1000 }, // 4 horas
+            { id: 16, title: '1ª Tentativa de entrega', delay: 6 * 60 * 60 * 1000, hasDeliveryButton: true } // 6 horas
+        ];
 
-        nextStages.forEach((stageNumber, index) => {
+        postPaymentStages.forEach((stage, index) => {
             setTimeout(() => {
-                const stepDate = new Date();
-                const timelineItem = this.createTimelineItem({
-                    id: stageNumber,
-                    date: stepDate,
-                    title: stageNames[stageNumber],
-                    description: stageNames[stageNumber],
-                    isChina: false,
-                    completed: true,
-                    needsLiberation: false
-                }, index === nextStages.length - 1);
-
-                timeline.appendChild(timelineItem);
-
-                setTimeout(() => {
-                    timelineItem.style.opacity = '1';
-                    timelineItem.style.transform = 'translateY(0)';
-                }, 100);
-
-                timelineItem.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'center' 
-                });
-
-            }, index * 30000); // 30 segundos entre cada etapa
+                this.addDeliveryStage(stage);
+            }, stage.delay);
         });
+    }
+
+    addDeliveryStage(stage) {
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+
+        const now = new Date();
+        const timelineItem = this.createTimelineItem({
+            id: stage.id,
+            date: now,
+            title: stage.title,
+            description: stage.title,
+            isChina: false,
+            completed: true,
+            hasDeliveryButton: stage.hasDeliveryButton
+        }, stage.id === 16);
+
+        timeline.appendChild(timelineItem);
+
+        // Animar entrada
+        setTimeout(() => {
+            timelineItem.style.opacity = '1';
+            timelineItem.style.transform = 'translateY(0)';
+        }, 100);
+
+        // Scroll para nova etapa
+        timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        console.log(`✅ Etapa adicionada: ${stage.title}`);
+
+        // Atualizar etapa no banco de dados
+        this.updateLeadStageInDatabase(stage.id);
     }
 
     async updatePaymentStatusInDatabase(status) {
