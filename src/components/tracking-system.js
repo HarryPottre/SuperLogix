@@ -518,6 +518,39 @@ export class TrackingSystem {
             `;
         }
         
+        // Botão para tentativas de entrega
+        if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
+            const buttonText = step.attemptNumber === 1 ? 'LIBERAR ENTREGA' : 'REENVIAR PACOTE';
+            const buttonIcon = step.attemptNumber === 1 ? 'fas fa-unlock' : 'fas fa-redo';
+            
+            buttonHtml = `
+                <button class="delivery-attempt-button" 
+                        data-attempt="${step.attemptNumber}" 
+                        data-value="${step.deliveryValue}"
+                        style="
+                            background: linear-gradient(45deg, #e74c3c, #c0392b);
+                            color: white;
+                            border: none;
+                            padding: 12px 25px;
+                            font-size: 1rem;
+                            font-weight: 700;
+                            border-radius: 25px;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+                            animation: pulse 2s infinite;
+                            font-family: 'Roboto', sans-serif;
+                            letter-spacing: 0.5px;
+                            margin-top: 15px;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                        ">
+                    <i class="${buttonIcon}"></i> ${buttonText}
+                </button>
+            `;
+        }
+        
         // Botão de tentativa de entrega
         if (step.hasDeliveryButton && step.completed) {
             const attemptNumber = this.getDeliveryAttemptNumber(step.id);
@@ -553,6 +586,16 @@ export class TrackingSystem {
             if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
                 liberationButton.addEventListener('click', () => {
                     this.openLiberationModal();
+                });
+            }
+        }
+        
+        // Configurar eventos para botões de tentativa de entrega
+        if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
+            const deliveryButton = timelineItem.querySelector('.delivery-attempt-button');
+            if (deliveryButton) {
+                deliveryButton.addEventListener('click', () => {
+                    this.handleDeliveryAttemptPayment(step.attemptNumber, step.deliveryValue);
                 });
             }
         }
@@ -1298,6 +1341,67 @@ export class TrackingSystem {
         const timelineItem = this.createTimelineItem({
             id: stage.id,
             date: now,
+    // Inicializar sistema de tentativas de entrega
+    initializeDeliverySystem() {
+        console.log('🚚 Inicializando sistema de tentativas de entrega');
+        this.deliveryAttempts = 0;
+        this.deliveryValues = [9.74, 14.98, 18.96]; // Valores das tentativas
+        this.isDeliverySystemActive = true;
+        
+        // Configurar primeira tentativa
+        this.setupDeliveryAttempt();
+    }
+
+    // Configurar tentativa de entrega
+    setupDeliveryAttempt() {
+        const attemptNumber = this.deliveryAttempts + 1;
+        const value = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
+        
+        console.log(`📦 Configurando ${attemptNumber}ª tentativa de entrega - R$ ${value.toFixed(2)}`);
+        
+        // Atualizar status atual
+        this.updateCurrentStatus(`${attemptNumber}ª Tentativa de Entrega (Aguardando Pagamento)`);
+        
+        // Adicionar etapa na timeline com botão
+        this.addDeliveryAttemptStep(attemptNumber, value);
+    }
+
+    // Adicionar etapa de tentativa de entrega na timeline
+    addDeliveryAttemptStep(attemptNumber, value) {
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+
+        const currentDate = new Date();
+        const timelineItem = this.createTimelineItem({
+            id: 100 + attemptNumber, // IDs únicos para tentativas
+            date: currentDate,
+            title: `${attemptNumber}ª Tentativa de Entrega`,
+            description: `${attemptNumber}ª Tentativa de Entrega (Aguardando Pagamento) - R$ ${value.toFixed(2)}`,
+            isChina: false,
+            completed: true,
+            needsLiberation: false,
+            isDeliveryAttempt: true,
+            deliveryValue: value,
+            attemptNumber: attemptNumber
+        }, false);
+
+        timeline.appendChild(timelineItem);
+
+        setTimeout(() => {
+            timelineItem.style.opacity = '1';
+            timelineItem.style.transform = 'translateY(0)';
+        }, 100);
+
+        timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Atualizar status atual no header
+    updateCurrentStatus(statusText) {
+        const currentStatus = document.getElementById('currentStatus');
+        if (currentStatus) {
+            currentStatus.textContent = statusText;
+        }
+    }
             title: stage.title,
             description: stage.title,
             isChina: false,
