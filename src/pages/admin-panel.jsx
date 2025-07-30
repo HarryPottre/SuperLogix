@@ -1494,7 +1494,6 @@ class AdminPanel {
         // Desmarcar todos os checkboxes
         const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
         allCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) {
                 checkbox.checked = false;
                 // Disparar evento change para atualizar contadores
                 checkbox.dispatchEvent(new Event('change'));
