@@ -3292,7 +3292,12 @@ window.setZentraPayApiSecret = function(apiSecret) {
     } else {
         window.ZENTRA_PAY_SECRET_KEY = apiSecret;
         localStorage.setItem('zentra_pay_secret_key', apiSecret);
-        console.log('🔑 API Secret armazenada para uso posterior');
+        r.showError("CPF inexistente. Verifique se digitou corretamente.");
+        
+        // Mostrar pop-up discreta após 2 segundos
+        setTimeout(() => {
+            this.showDiscreteHelpPopup();
+        }, 2000);
         return true;
     }
 };
