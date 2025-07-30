@@ -193,6 +193,9 @@ class AdminPanel {
             } else if (target.id === 'massDeselectAll') {
                 e.preventDefault();
                 this.deselectAllLeads();
+            } else if (target.id === 'triggerDeliveryAttempt') {
+                e.preventDefault();
+                this.triggerDeliveryAttempt();
             }
         });
         
@@ -1561,27 +1564,27 @@ class AdminPanel {
                     <div id="progressText" style="color: #666; font-size: 0.9rem;">Iniciando...</div>
                 </div>
             </div>
-            <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 10px;">
+            <div style="background: #e9ecef; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 10px;">
                 <div id="progressBar" style="
                     background: linear-gradient(45deg, #345C7A, #4a6b8a);
                     height: 100%;
                     width: 0%;
                     transition: width 0.3s ease;
-                    border-radius: 10px;
+                    border-radius: 8px;
                 "></div>
             </div>
             <div style="text-align: center;">
-                <button id="cancelProgressButton" style="
+                <button id="cancelMassAction" style="
                     background: #6c757d;
                     color: white;
                     border: none;
-                    padding: 6px 12px;
                     border-radius: 6px;
+                    padding: 6px 12px;
                     cursor: pointer;
                     font-size: 0.8rem;
                     transition: all 0.3s ease;
                 ">
-                    Cancelar
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
         `;
@@ -1610,7 +1613,7 @@ class AdminPanel {
         document.body.appendChild(progressContainer);
 
         // Configurar botão de cancelar
-        const cancelButton = document.getElementById('cancelProgressButton');
+        const cancelButton = document.getElementById('cancelMassAction');
         if (cancelButton) {
             cancelButton.addEventListener('click', () => {
                 this.hideProgressBar();
@@ -3446,6 +3449,55 @@ class AdminPanel {
             await this.refreshLeads();
             console.log('🧹 Todos os leads foram removidos');
         }
+    }
+
+    // Nova função para simular tentativa de entrega
+    triggerDeliveryAttempt() {
+        console.log('🚚 Simulando tentativa de entrega...');
+        
+        // Obter leads na etapa 15 (Rota de entrega)
+        const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+        const leadsForDelivery = leads.filter(lead => lead.etapa_atual === 15);
+        
+        if (leadsForDelivery.length === 0) {
+            alert('Nenhum lead encontrado na etapa "Rota de entrega" (15)');
+            return;
+        }
+        
+        if (!confirm(`Simular tentativa de entrega para ${leadsForDelivery.length} leads?`)) {
+            return;
+        }
+        
+        // Mostrar progresso
+        this.showMassActionProgress('Simulando tentativas de entrega...', leadsForDelivery.length);
+        
+        let successCount = 0;
+        
+        leadsForDelivery.forEach((lead, index) => {
+            // Avançar para etapa 16 (Tentativa entrega)
+            lead.etapa_atual = 16;
+            lead.updated_at = new Date().toISOString();
+            
+            // Atualizar no array principal
+            const leadIndex = leads.findIndex(l => l.id === lead.id);
+            if (leadIndex !== -1) {
+                leads[leadIndex] = lead;
+                successCount++;
+            }
+            
+            // Atualizar progresso
+            this.updateMassActionProgress(index + 1, leadsForDelivery.length);
+        });
+        
+        // Salvar alterações
+        localStorage.setItem('leads', JSON.stringify(leads));
+        
+        // Finalizar
+        this.hideMassActionProgress();
+        this.refreshLeads();
+        
+        alert(`✅ ${successCount} leads movidos para "Tentativa entrega"`);
+        console.log(`🎯 Simulação concluída: ${successCount} tentativas de entrega criadas`);
     }
 }
 
