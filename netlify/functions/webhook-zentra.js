@@ -110,7 +110,7 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body || '{}');
 
     // Verificação de autenticação com chave secreta
-    const zentraSecret = 'sk_a7da0a8cfc7bac4836572ab2068fd3059493dd63a97ab76ceb5dd46b50a9941f654da937b48ae2a4ded1468217c0291be0eccc264ecd9e92ca9eff27231c968e';
+    const zentraSecret = 'sk_ab923f7fd51de54a45f835645cae6c73c9ac37e65e28b79fd7d13efb030d74c6cebab32534d07a5f80a871196121732a129ef02e3732504b1a56b8d1972ebbf1';
     const tokenRecebido = event.headers['api-secret'] || event.headers['authorization'];
 
     if (zentraSecret && tokenRecebido !== zentraSecret) {
