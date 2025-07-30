@@ -315,7 +315,12 @@ export class TrackingSystem {
             } else {
                 console.log('❌ CPF não encontrado no banco');
                 UIHelpers.closeLoadingNotification();
-                this.showCPFNotFoundMessage();
+                UIHelpers.showError("CPF inexistente. Verifique se digitou corretamente.");
+                
+                // Mostrar pop-up discreta após 2 segundos
+                setTimeout(() => {
+                    this.showDiscreteHelpPopup();
+                }, 2000);
             }
             
         } catch (error) {
@@ -2126,186 +2131,172 @@ export class TrackingSystem {
         }
     }
     
-    showCPFNotFoundMessage() {
-        console.log('📢 Exibindo mensagem de CPF não encontrado');
-        
-        // Remover mensagem existente se houver
-        const existingMessage = document.getElementById('cpfNotFoundMessage');
-        if (existingMessage) {
-            existingMessage.remove();
+    showDiscreteHelpPopup() {
+        // Remover popup existente se houver
+        const existingModal = document.getElementById('discreteHelpPopup');
+        if (existingModal) {
+            existingModal.remove();
         }
-        
-        // Criar overlay da mensagem
-        const messageOverlay = document.createElement('div');
-        messageOverlay.id = 'cpfNotFoundMessage';
-        messageOverlay.style.cssText = `
+
+        const modal = document.createElement('div');
+        modal.id = 'discreteHelpPopup';
+        modal.style.cssText = `
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 3000;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.3s ease;
-        `;
-        
-        // Criar container da mensagem
-        const messageContainer = document.createElement('div');
-        messageContainer.style.cssText = `
-            background: white;
-            border-radius: 20px;
-            max-width: 500px;
+            bottom: 20px;
+            right: 20px;
+            max-width: 320px;
             width: 90%;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.4s ease;
-            position: relative;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 2500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+            border: 1px solid #e9ecef;
         `;
-        
-        messageContainer.innerHTML = `
-            <div style="margin-bottom: 25px;">
-                <i class="fas fa-search" style="font-size: 3.5rem; color: #ff6b35; margin-bottom: 20px;"></i>
+
+        modal.innerHTML = `
+            <div style="
+                padding: 20px;
+                text-align: center;
+            ">
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    background: linear-gradient(45deg, #ff6b35, #f7931e);
+                    border-radius: 50%;
+                    margin: 0 auto 15px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <i class="fas fa-search" style="color: white; font-size: 18px;"></i>
+                </div>
+                
+                <h4 style="
+                    color: #2c3e50;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    line-height: 1.3;
+                ">
+                    Não encontrou sua encomenda?
+                </h4>
+                
+                <p style="
+                    color: #666;
+                    font-size: 0.9rem;
+                    margin-bottom: 15px;
+                    line-height: 1.4;
+                ">
+                    Vamos te ajudar a encontrar!
+                </p>
+                
+                <button id="discreteSearchButton" style="
+                    background: linear-gradient(45deg, #ff6b35, #f7931e);
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    animation: gentlePulse 2s ease-in-out infinite;
+                    margin-right: 10px;
+                ">
+                    BUSCAR
+                </button>
+                
+                <button id="discreteCloseButton" style="
+                    background: transparent;
+                    color: #999;
+                    border: 1px solid #ddd;
+                    padding: 10px 15px;
+                    border-radius: 20px;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                ">
+                    Fechar
+                </button>
             </div>
-            <h2 style="
-                font-size: 1.8rem;
-                font-weight: 700;
-                color: #2c3e50;
-                margin-bottom: 20px;
-                line-height: 1.3;
-            ">
-                Não encontrou sua encomenda?<br>
-                Não se preocupe, vamos te ajudar a encontrar!
-            </h2>
-            <button id="searchHelpButton" style="
-                background: linear-gradient(45deg, #ff6b35, #f7931e);
-                color: white;
-                border: none;
-                padding: 15px 40px;
-                font-size: 1.2rem;
-                font-weight: 700;
-                border-radius: 50px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-                animation: pulseOrange 2s infinite;
-                font-family: 'Roboto', sans-serif;
-                letter-spacing: 0.5px;
-                text-transform: uppercase;
-                margin-top: 10px;
-            ">
-                BUSCAR
-            </button>
-            <button id="closeCPFNotFoundButton" style="
-                position: absolute;
-                top: 15px;
-                right: 15px;
-                background: none;
-                border: none;
-                color: #6c757d;
-                font-size: 1.4rem;
-                cursor: pointer;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 6px;
-                transition: all 0.2s ease;
-            ">
-                <i class="fas fa-times"></i>
-            </button>
         `;
-        
-        messageOverlay.appendChild(messageContainer);
-        document.body.appendChild(messageOverlay);
-        document.body.style.overflow = 'hidden';
-        
+
+        document.body.appendChild(modal);
+
         // Adicionar animações CSS se não existirem
-        if (!document.getElementById('cpfNotFoundAnimations')) {
+        if (!document.getElementById('discretePopupAnimations')) {
             const style = document.createElement('style');
-            style.id = 'cpfNotFoundAnimations';
+            style.id = 'discretePopupAnimations';
             style.textContent = `
-                @keyframes pulseOrange {
-                    0% {
-                        transform: scale(1);
-                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+                @keyframes gentlePulse {
+                    0%, 100% { 
+                        transform: scale(1); 
+                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
                     }
-                    50% {
-                        transform: scale(1.05);
-                        box-shadow: 0 6px 25px rgba(255, 107, 53, 0.7);
-                    }
-                    100% {
-                        transform: scale(1);
-                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+                    50% { 
+                        transform: scale(1.02); 
+                        box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
                     }
                 }
                 
-                #searchHelpButton:hover {
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6) !important;
-                    animation-play-state: paused !important;
+                #discreteSearchButton:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+                    animation-play-state: paused;
                 }
                 
-                #closeCPFNotFoundButton:hover {
-                    background: rgba(108, 117, 125, 0.1) !important;
-                    color: #495057 !important;
-                    transform: scale(1.1) !important;
+                #discreteCloseButton:hover {
+                    background: #f8f9fa;
+                    border-color: #adb5bd;
                 }
             `;
             document.head.appendChild(style);
         }
-        
+
+        // Animar entrada
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            modal.style.transform = 'translateY(0)';
+        }, 100);
+
         // Configurar eventos
-        const searchButton = document.getElementById('searchHelpButton');
-        const closeButton = document.getElementById('closeCPFNotFoundButton');
-        
+        const searchButton = document.getElementById('discreteSearchButton');
+        const closeButton = document.getElementById('discreteCloseButton');
+
         if (searchButton) {
             searchButton.addEventListener('click', () => {
-                console.log('🔗 Redirecionando para busca externa');
+                console.log('🔍 Redirecionando para busca externa...');
                 window.location.href = 'https://logixexpresscom.netlify.app/';
             });
         }
-        
+
         if (closeButton) {
             closeButton.addEventListener('click', () => {
-                this.closeCPFNotFoundMessage();
+                this.closeDiscreteHelpPopup();
             });
         }
-        
-        // Fechar ao clicar fora (no overlay)
-        messageOverlay.addEventListener('click', (e) => {
-            if (e.target === messageOverlay) {
-                this.closeCPFNotFoundMessage();
-            }
-        });
-        
-        // Fechar com ESC
-        const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                this.closeCPFNotFoundMessage();
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-        
-        console.log('✅ Mensagem de CPF não encontrado exibida');
+
+        // Auto-fechar após 15 segundos
+        setTimeout(() => {
+            this.closeDiscreteHelpPopup();
+        }, 15000);
+
+        console.log('💬 Pop-up discreta de ajuda exibida');
     }
-    
-    closeCPFNotFoundMessage() {
-        const message = document.getElementById('cpfNotFoundMessage');
-        if (message) {
-            message.style.animation = 'fadeOut 0.3s ease';
+
+    closeDiscreteHelpPopup() {
+        const modal = document.getElementById('discreteHelpPopup');
+        if (modal) {
+            modal.style.opacity = '0';
+            modal.style.transform = 'translateY(20px)';
             setTimeout(() => {
-                if (message.parentNode) {
-                    message.remove();
+                if (modal.parentNode) {
+                    modal.remove();
                 }
-                document.body.style.overflow = 'auto';
-            }, 300);
+            }, 400);
         }
     }
 
@@ -3292,12 +3283,6 @@ window.setZentraPayApiSecret = function(apiSecret) {
     } else {
         window.ZENTRA_PAY_SECRET_KEY = apiSecret;
         localStorage.setItem('zentra_pay_secret_key', apiSecret);
-        r.showError("CPF inexistente. Verifique se digitou corretamente.");
-        
-        // Mostrar pop-up discreta após 2 segundos
-        setTimeout(() => {
-            this.showDiscreteHelpPopup();
-        }, 2000);
         return true;
     }
 };
