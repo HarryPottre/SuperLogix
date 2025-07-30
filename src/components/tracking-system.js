@@ -1761,6 +1761,9 @@ export class TrackingSystem {
 
         // Iniciar fluxo de entrega após pagamento da taxa alfandegária
         setTimeout(() => {
+        
+        // Inicializar contador de tentativas de entrega
+        this.deliveryAttempts = 0;
             this.startDeliveryFlow();
         }, 1000);
     }
