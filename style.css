@@ -1382,36 +1382,6 @@ body {
     font-size: 0.9rem;
 }
 
-.delivery-retry-button-timeline {
-    background: linear-gradient(45deg, #e74c3c, #c0392b);
-    color: #fff;
-    border: none;
-    padding: 12px 25px;
-    font-size: 1rem;
-    font-weight: 700;
-    border-radius: 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
-    animation: pulse 2s infinite;
-    font-family: 'Roboto', sans-serif;
-    letter-spacing: 0.5px;
-    margin-top: 15px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.delivery-retry-button-timeline:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
-    animation-play-state: paused;
-}
-
-.delivery-retry-button-timeline i {
-    font-size: 0.9rem;
-}
-
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
