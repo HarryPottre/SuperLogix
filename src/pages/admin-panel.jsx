@@ -213,6 +213,516 @@ class AdminPanel {
         
         this.debugLog('Ações em massa configuradas', 'info');
     }
+
+    // Configurar eventos de ações em massa
+    setupMassActionEvents() {
+        console.log('🔧 Configurando eventos de ações em massa...');
+        
+        // Configurar eventos específicos para cada botão
+        this.setupMassActionButton('massNextStage', () => this.handleMassNextStage());
+        this.setupMassActionButton('massPrevStage', () => this.handleMassPrevStage());
+        this.setupMassActionButton('massSetStage', () => this.handleMassSetStage());
+        this.setupMassActionButton('massDeleteLeads', () => this.handleMassDeleteLeads());
+    }
+    
+    setupMassActionButton(buttonId, handler) {
+        // Tentar configurar imediatamente
+        const button = document.getElementById(buttonId);
+        if (button) {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handler();
+            });
+            console.log(`✅ Evento configurado para ${buttonId}`);
+        }
+        
+        // Usar delegação como backup
+        document.addEventListener('click', (e) => {
+            if (e.target.id === buttonId || e.target.closest(`#${buttonId}`)) {
+                e.preventDefault();
+                e.stopPropagation();
+                handler();
+            }
+        });
+    }
+
+    // Lidar com avançar etapa em massa
+    async handleMassNextStage() {
+        console.log('⬆️ Avançar etapas em massa');
+        
+        const selectedLeads = this.getSelectedLeads();
+        if (selectedLeads.length === 0) {
+            alert('Selecione pelo menos um lead para avançar');
+            return;
+        }
+        
+        console.log(`📊 Avançando ${selectedLeads.length} leads selecionados`);
+        
+        // Confirmar ação
+        if (!confirm(`Tem certeza que deseja avançar ${selectedLeads.length} leads para a próxima etapa?`)) {
+            return;
+        }
+        
+        // Mostrar progresso
+        this.showMassActionProgress('Avançando etapas...', selectedLeads.length);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        try {
+            // Processar cada lead
+            for (let i = 0; i < selectedLeads.length; i++) {
+                const lead = selectedLeads[i];
+                const currentStage = parseInt(lead.etapa_atual) || 1;
+                const nextStage = this.getNextStage(currentStage);
+                
+                console.log(`📈 Lead ${lead.nome_completo}: Etapa ${currentStage} → ${nextStage}`);
+                
+                if (nextStage > currentStage) {
+                    try {
+                        // Atualizar no banco de dados
+                        await this.updateLeadStage(lead.cpf, nextStage);
+                        
+                        // Atualizar na interface
+                        lead.etapa_atual = nextStage;
+                        lead.updated_at = new Date().toISOString();
+                        
+                        successCount++;
+                        console.log(`✅ Lead ${lead.nome_completo} avançado com sucesso`);
+                    } catch (error) {
+                        console.error(`❌ Erro ao avançar lead ${lead.nome_completo}:`, error);
+                        errorCount++;
+                    }
+                } else {
+                    console.log(`⚠️ Lead ${lead.nome_completo} já está na última etapa`);
+                }
+                
+                // Atualizar progresso
+                this.updateMassActionProgress(i + 1, selectedLeads.length);
+                
+                // Pequeno delay para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Finalizar
+            this.hideMassActionProgress();
+            
+            // Atualizar interface
+            this.refreshLeads();
+            this.deselectAllLeads();
+            
+            // Mostrar resultado
+            alert(`Operação concluída!\n✅ ${successCount} leads avançados\n❌ ${errorCount} erros`);
+            
+        } catch (error) {
+            console.error('❌ Erro na operação de avançar etapas:', error);
+            this.hideMassActionProgress();
+            alert('Erro na operação. Verifique o console para detalhes.');
+        }
+    }
+    
+    // Atualizar etapa do lead no banco de dados
+    async updateLeadStage(cpf, newStage) {
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const leadIndex = leads.findIndex(l => l.cpf && l.cpf.replace(/[^\d]/g, '') === cpf.replace(/[^\d]/g, ''));
+            
+            if (leadIndex !== -1) {
+                leads[leadIndex].etapa_atual = newStage;
+                leads[leadIndex].updated_at = new Date().toISOString();
+                localStorage.setItem('leads', JSON.stringify(leads));
+                console.log(`✅ Etapa atualizada no banco: CPF ${cpf} → Etapa ${newStage}`);
+                return true;
+            } else {
+                throw new Error(`Lead não encontrado para CPF: ${cpf}`);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar etapa no banco:', error);
+            throw error;
+        }
+    }
+
+    // Lidar com voltar etapa em massa
+    async handleMassPrevStage() {
+        console.log('⬇️ Voltar etapas em massa');
+        
+        const selectedLeads = this.getSelectedLeads();
+        if (selectedLeads.length === 0) {
+            alert('Selecione pelo menos um lead para voltar');
+            return;
+        }
+        
+        console.log(`📊 Voltando ${selectedLeads.length} leads selecionados`);
+        
+        // Confirmar ação
+        if (!confirm(`Tem certeza que deseja voltar ${selectedLeads.length} leads para a etapa anterior?`)) {
+            return;
+        }
+        
+        // Mostrar progresso
+        this.showMassActionProgress('Voltando etapas...', selectedLeads.length);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        try {
+            // Processar cada lead
+            for (let i = 0; i < selectedLeads.length; i++) {
+                const lead = selectedLeads[i];
+                const currentStage = parseInt(lead.etapa_atual) || 1;
+                const prevStage = this.getPreviousStage(currentStage);
+                
+                console.log(`📉 Lead ${lead.nome_completo}: Etapa ${currentStage} → ${prevStage}`);
+                
+                if (prevStage < currentStage) {
+                    try {
+                        // Atualizar no banco de dados
+                        await this.updateLeadStage(lead.cpf, prevStage);
+                        
+                        // Atualizar na interface
+                        lead.etapa_atual = prevStage;
+                        lead.updated_at = new Date().toISOString();
+                        
+                        successCount++;
+                        console.log(`✅ Lead ${lead.nome_completo} voltado com sucesso`);
+                    } catch (error) {
+                        console.error(`❌ Erro ao voltar lead ${lead.nome_completo}:`, error);
+                        errorCount++;
+                    }
+                } else {
+                    console.log(`⚠️ Lead ${lead.nome_completo} já está na primeira etapa`);
+                }
+                
+                // Atualizar progresso
+                this.updateMassActionProgress(i + 1, selectedLeads.length);
+                
+                // Pequeno delay para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Finalizar
+            this.hideMassActionProgress();
+            
+            // Atualizar interface
+            this.refreshLeads();
+            this.deselectAllLeads();
+            
+            // Mostrar resultado
+            alert(`Operação concluída!\n✅ ${successCount} leads voltados\n❌ ${errorCount} erros`);
+            
+        } catch (error) {
+            console.error('❌ Erro na operação de voltar etapas:', error);
+            this.hideMassActionProgress();
+            alert('Erro na operação. Verifique o console para detalhes.');
+        }
+    }
+
+    // Lidar com definir etapa em massa
+    async handleMassSetStage() {
+        console.log('🎯 Definir etapa em massa');
+        
+        const selectedLeads = this.getSelectedLeads();
+        if (selectedLeads.length === 0) {
+            alert('Selecione pelo menos um lead para definir etapa');
+            return;
+        }
+        
+        const targetStage = document.getElementById('targetStageSelect')?.value;
+        if (!targetStage) {
+            alert('Selecione uma etapa de destino');
+            return;
+        }
+        
+        console.log(`📊 Definindo etapa ${targetStage} para ${selectedLeads.length} leads`);
+        
+        // Confirmar ação
+        const stageName = this.getStageName(parseInt(targetStage));
+        if (!confirm(`Tem certeza que deseja definir ${selectedLeads.length} leads para a etapa "${stageName}"?`)) {
+            return;
+        }
+        
+        // Mostrar progresso
+        this.showMassActionProgress(`Definindo etapa ${targetStage}...`, selectedLeads.length);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        try {
+            // Processar cada lead
+            for (let i = 0; i < selectedLeads.length; i++) {
+                const lead = selectedLeads[i];
+                
+                try {
+                    // Atualizar no banco de dados
+                    await this.updateLeadStage(lead.cpf, parseInt(targetStage));
+                    
+                    // Atualizar na interface
+                    lead.etapa_atual = parseInt(targetStage);
+                    lead.updated_at = new Date().toISOString();
+                    
+                    successCount++;
+                    console.log(`✅ Lead ${lead.nome_completo} definido para etapa ${targetStage}`);
+                } catch (error) {
+                    console.error(`❌ Erro ao definir etapa para lead ${lead.nome_completo}:`, error);
+                    errorCount++;
+                }
+                
+                // Atualizar progresso
+                this.updateMassActionProgress(i + 1, selectedLeads.length);
+                
+                // Pequeno delay para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Finalizar
+            this.hideMassActionProgress();
+            
+            // Atualizar interface
+            this.refreshLeads();
+            this.deselectAllLeads();
+            
+            // Mostrar resultado
+            alert(`Operação concluída!\n✅ ${successCount} leads atualizados\n❌ ${errorCount} erros`);
+            
+        } catch (error) {
+            console.error('❌ Erro na operação de definir etapa:', error);
+            this.hideMassActionProgress();
+            alert('Erro na operação. Verifique o console para detalhes.');
+        }
+    }
+
+    // Lidar com excluir leads em massa
+    async handleMassDeleteLeads() {
+        console.log('🗑️ Excluir leads em massa');
+        
+        const selectedLeads = this.getSelectedLeads();
+        if (selectedLeads.length === 0) {
+            alert('Selecione pelo menos um lead para excluir');
+            return;
+        }
+        
+        if (!confirm(`Tem certeza que deseja excluir ${selectedLeads.length} leads? Esta ação não pode ser desfeita.`)) {
+            return;
+        }
+        
+        // Mostrar progresso
+        this.showMassActionProgress('Excluindo leads...', selectedLeads.length);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        try {
+            // Processar cada lead
+            for (let i = 0; i < selectedLeads.length; i++) {
+                const lead = selectedLeads[i];
+                
+                try {
+                    await this.deleteLead(lead.cpf);
+                    successCount++;
+                    console.log(`✅ Lead ${lead.nome_completo} excluído com sucesso`);
+                } catch (error) {
+                    console.error(`❌ Erro ao excluir lead ${lead.nome_completo}:`, error);
+                    errorCount++;
+                }
+                
+                // Atualizar progresso
+                this.updateMassActionProgress(i + 1, selectedLeads.length);
+                
+                // Pequeno delay para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Finalizar
+            this.hideMassActionProgress();
+            
+            // Atualizar interface
+            this.refreshLeads();
+            this.deselectAllLeads();
+            
+            // Mostrar resultado
+            alert(`Operação concluída!\n✅ ${successCount} leads excluídos\n❌ ${errorCount} erros`);
+            
+        } catch (error) {
+            console.error('❌ Erro na operação de exclusão:', error);
+            this.hideMassActionProgress();
+            alert('Erro na operação. Verifique o console para detalhes.');
+        }
+    }
+    
+    // Excluir lead do banco de dados
+    async deleteLead(cpf) {
+        try {
+            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+            const filteredLeads = leads.filter(l => l.cpf && l.cpf.replace(/[^\d]/g, '') !== cpf.replace(/[^\d]/g, ''));
+            localStorage.setItem('leads', JSON.stringify(filteredLeads));
+            console.log(`✅ Lead excluído do banco: CPF ${cpf}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao excluir lead do banco:', error);
+            throw error;
+        }
+    }
+
+    // Mostrar progresso de ação em massa
+    showMassActionProgress(message, total) {
+        console.log(`📊 Iniciando progresso: ${message} (${total} itens)`);
+        
+        // Remover progresso existente se houver
+        this.hideMassActionProgress();
+        
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'massActionProgressContainer';
+        progressContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #345C7A;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease;
+        `;
+        
+        // Variável para controlar cancelamento
+        this.massActionCancelled = false;
+        
+        progressContainer.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                <i class="fas fa-cogs" style="color: #345C7A; margin-right: 10px; font-size: 1.2rem;"></i>
+                <span style="font-weight: 600; color: #345C7A;">${message}</span>
+            </div>
+            <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+                <div id="massActionProgressBar" style="
+                    background: linear-gradient(45deg, #345C7A, #2c4a63);
+                    height: 100%;
+                    width: 0%;
+                    transition: width 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                ">0%</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="massActionProgressText" style="font-size: 0.9rem; color: #666;">0 de ${total}</span>
+                <button id="cancelProgressButton" onclick="window.adminPanel.cancelMassAction()" style="
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                ">Cancelar</button>
+            </div>
+        `;
+        
+        document.body.appendChild(progressContainer);
+        console.log('✅ Barra de progresso criada');
+    }
+
+    // Atualizar progresso de ação em massa
+    updateMassActionProgress(current, total) {
+        // Verificar se foi cancelado
+        if (this.massActionCancelled) {
+            throw new Error('Operação cancelada pelo usuário');
+        }
+        
+        const progressBar = document.getElementById('massActionProgressBar');
+        const progressText = document.getElementById('massActionProgressText');
+        
+        if (progressBar && progressText) {
+            const percentage = (current / total) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressBar.textContent = `${Math.round(percentage)}%`;
+            progressText.textContent = `${current} de ${total}`;
+            console.log(`📊 Progresso atualizado: ${current}/${total} (${Math.round(percentage)}%)`);
+        }
+    }
+
+    // Ocultar progresso de ação em massa
+    hideMassActionProgress() {
+        const progressContainer = document.getElementById('massActionProgressContainer');
+        if (progressContainer) {
+            progressContainer.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (progressContainer.parentNode) {
+                    progressContainer.remove();
+                }
+            }, 300);
+            console.log('✅ Barra de progresso removida');
+        }
+        
+        // Reset da flag de cancelamento
+        this.massActionCancelled = false;
+    }
+    
+    // Cancelar ação em massa
+    cancelMassAction() {
+        console.log('🛑 Cancelando ação em massa...');
+        this.massActionCancelled = true;
+        this.hideMassActionProgress();
+        alert('Operação cancelada pelo usuário');
+    }
+
+    // Obter próxima etapa
+    getNextStage(currentStage) {
+        const stages = this.getStageOrder();
+        const currentIndex = stages.indexOf(currentStage);
+        
+        if (currentIndex === -1 || currentIndex === stages.length - 1) {
+            return currentStage; // Já está na última etapa
+        }
+        
+        return stages[currentIndex + 1];
+    }
+
+    // Obter etapa anterior
+    getPreviousStage(currentStage) {
+        const stages = this.getStageOrder();
+        const currentIndex = stages.indexOf(currentStage);
+        
+        if (currentIndex === -1 || currentIndex === 0) {
+            return currentStage; // Já está na primeira etapa
+        }
+        
+        return stages[currentIndex - 1];
+    }
+
+    // Obter ordem das etapas
+    getStageOrder() {
+        return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    }
+
+    // Obter nome da etapa
+    getStageName(stageNumber) {
+        const stageNames = {
+            1: '1 - Pedido criado',
+            2: '2 - Preparando para envio',
+            3: '3 - Vendedor enviou pedido',
+            4: '4 - Centro triagem Shenzhen',
+            5: '5 - Centro logístico Shenzhen',
+            6: '6 - Trânsito internacional',
+            7: '7 - Liberado exportação',
+            8: '8 - Saiu origem Shenzhen',
+            9: '9 - Chegou no Brasil',
+            10: '10 - Trânsito Curitiba/PR',
+            11: '11 - Alfândega importação',
+            12: '12 - Liberado alfândega',
+            13: '13 - Sairá para entrega',
+            14: '14 - Em trânsito entrega',
+            15: '15 - Rota de entrega',
+            16: '16 - Tentativa entrega'
+        };
+        
+        return stageNames[stageNumber] || `Etapa ${stageNumber}`;
+    }
     
     // Obter próxima etapa na sequência
     getNextStage(currentStage) {
