@@ -164,6 +164,79 @@ class AdminPanel {
 
         // Modais
         this.setupModalEvents();
+        
+        // Botão de limpar todos os dados
+        const clearAllButton = document.getElementById('clearAllButton');
+        if (clearAllButton) {
+            clearAllButton.addEventListener('click', () => {
+                if (confirm('⚠️ ATENÇÃO: Isso irá apagar TODOS os leads do sistema!\n\nTem certeza que deseja continuar?')) {
+                    this.clearAllLeads();
+                }
+            });
+        }
+        
+        // Botão de simular tentativa de entrega
+        const triggerDeliveryButton = document.getElementById('triggerDeliveryAttempt');
+        if (triggerDeliveryButton) {
+            triggerDeliveryButton.addEventListener('click', () => {
+                this.triggerDeliveryAttemptForSelected();
+            });
+        }
+    }
+    
+    triggerDeliveryAttemptForSelected() {
+        const selectedLeads = this.getSelectedLeads();
+        
+        if (selectedLeads.length === 0) {
+            alert('Selecione pelo menos um lead para simular tentativa de entrega.');
+            return;
+        }
+        
+        const leadNames = selectedLeads.slice(0, 3).map(lead => lead.nome_completo).join(', ');
+        const moreText = selectedLeads.length > 3 ? ` e mais ${selectedLeads.length - 3}` : '';
+        
+        if (confirm(`Simular tentativa de entrega para:\n\n${leadNames}${moreText}\n\nIsso irá adicionar a etapa "1ª Tentativa de Entrega" para os leads selecionados.`)) {
+            this.processDeliveryAttemptSimulation(selectedLeads);
+        }
+    }
+    
+    async processDeliveryAttemptSimulation(selectedLeads) {
+        console.log('🚚 Simulando tentativas de entrega para leads selecionados');
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const lead of selectedLeads) {
+            try {
+                // Atualizar lead para etapa 17 (1ª Tentativa de Entrega)
+                lead.etapa_atual = 17;
+                lead.updated_at = new Date().toISOString();
+                
+                // Salvar no localStorage
+                const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+                const leadIndex = leads.findIndex(l => l.id === lead.id);
+                
+                if (leadIndex !== -1) {
+                    leads[leadIndex] = lead;
+                    localStorage.setItem('leads', JSON.stringify(leads));
+                    successCount++;
+                    console.log(`✅ Lead ${lead.nome_completo} atualizado para etapa 17`);
+                } else {
+                    errorCount++;
+                    console.error(`❌ Lead ${lead.nome_completo} não encontrado`);
+                }
+                
+            } catch (error) {
+                errorCount++;
+                console.error(`❌ Erro ao atualizar lead ${lead.nome_completo}:`, error);
+            }
+        }
+        
+        // Atualizar interface
+        this.refreshLeads();
+        
+        // Mostrar resultado
+        alert(`Simulação concluída!\n\n✅ Sucessos: ${successCount}\n❌ Erros: ${errorCount}\n\nOs leads agora estão na etapa "1ª Tentativa de Entrega" e o botão "LIBERAR ENTREGA" deve aparecer no rastreamento.`);
     }
 
     setupMassActions() {
@@ -193,9 +266,6 @@ class AdminPanel {
             } else if (target.id === 'massDeselectAll') {
                 e.preventDefault();
                 this.deselectAllLeads();
-            } else if (target.id === 'triggerDeliveryAttempt') {
-                e.preventDefault();
-                this.triggerDeliveryAttempt();
             }
         });
         
@@ -1564,27 +1634,27 @@ class AdminPanel {
                     <div id="progressText" style="color: #666; font-size: 0.9rem;">Iniciando...</div>
                 </div>
             </div>
-            <div style="background: #e9ecef; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 10px;">
+            <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 10px;">
                 <div id="progressBar" style="
                     background: linear-gradient(45deg, #345C7A, #4a6b8a);
                     height: 100%;
                     width: 0%;
                     transition: width 0.3s ease;
-                    border-radius: 8px;
+                    border-radius: 10px;
                 "></div>
             </div>
             <div style="text-align: center;">
-                <button id="cancelMassAction" style="
+                <button id="cancelProgressButton" style="
                     background: #6c757d;
                     color: white;
                     border: none;
-                    border-radius: 6px;
                     padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
                     font-size: 0.8rem;
                     transition: all 0.3s ease;
                 ">
-                    <i class="fas fa-times"></i>
+                    Cancelar
                 </button>
             </div>
         `;
@@ -1613,7 +1683,7 @@ class AdminPanel {
         document.body.appendChild(progressContainer);
 
         // Configurar botão de cancelar
-        const cancelButton = document.getElementById('cancelMassAction');
+        const cancelButton = document.getElementById('cancelProgressButton');
         if (cancelButton) {
             cancelButton.addEventListener('click', () => {
                 this.hideProgressBar();
@@ -3451,53 +3521,9 @@ class AdminPanel {
         }
     }
 
-    // Nova função para simular tentativa de entrega
-    triggerDeliveryAttempt() {
-        console.log('🚚 Simulando tentativa de entrega...');
-        
-        // Obter leads na etapa 15 (Rota de entrega)
-        const leads = JSON.parse(localStorage.getItem('leads') || '[]');
-        const leadsForDelivery = leads.filter(lead => lead.etapa_atual === 15);
-        
-        if (leadsForDelivery.length === 0) {
-            alert('Nenhum lead encontrado na etapa "Rota de entrega" (15)');
-            return;
-        }
-        
-        if (!confirm(`Simular tentativa de entrega para ${leadsForDelivery.length} leads?`)) {
-            return;
-        }
-        
-        // Mostrar progresso
-        this.showMassActionProgress('Simulando tentativas de entrega...', leadsForDelivery.length);
-        
-        let successCount = 0;
-        
-        leadsForDelivery.forEach((lead, index) => {
-            // Avançar para etapa 16 (Tentativa entrega)
-            lead.etapa_atual = 16;
-            lead.updated_at = new Date().toISOString();
-            
-            // Atualizar no array principal
-            const leadIndex = leads.findIndex(l => l.id === lead.id);
-            if (leadIndex !== -1) {
-                leads[leadIndex] = lead;
-                successCount++;
-            }
-            
-            // Atualizar progresso
-            this.updateMassActionProgress(index + 1, leadsForDelivery.length);
-        });
-        
-        // Salvar alterações
-        localStorage.setItem('leads', JSON.stringify(leads));
-        
-        // Finalizar
-        this.hideMassActionProgress();
-        this.refreshLeads();
-        
-        alert(`✅ ${successCount} leads movidos para "Tentativa entrega"`);
-        console.log(`🎯 Simulação concluída: ${successCount} tentativas de entrega criadas`);
+    getSelectedLeads() {
+        const selectedIds = Array.from(this.selectedLeads);
+        return this.filteredLeads.filter(lead => selectedIds.includes(lead.id));
     }
 }
 
