@@ -597,7 +597,7 @@
                     if (!this.hasAttribute('data-retry')) {
                         this.setAttribute('data-retry', 'true');
                         alert('Ocorreu um erro ao tentar processar o pagamento');
-                        this.innerHTML = '<i class="fas fa-redo"></i> Tentar Novamente';
+                        this.textContent = '--';
                         return;
                     }
                     
