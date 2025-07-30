@@ -433,7 +433,16 @@ export class TrackingSystem {
             13: 'Pedido sairá para entrega',
             14: 'Pedido em trânsito entrega',
             15: 'Pedido em rota de entrega',
-            16: 'Tentativa entrega'
+            16: "Pedido em rota para seu destino",
+            17: "1ª Tentativa de Entrega (Aguardando Pagamento)",
+            18: "Pedido sairá para entrega",
+            19: "Pedido em trânsito",
+            20: "Pedido em rota para seu destino", 
+            21: "2ª Tentativa de Entrega (Aguardando Pagamento)",
+            22: "Pedido sairá para entrega",
+            23: "Pedido em trânsito",
+            24: "Pedido em rota para seu destino",
+            25: "3ª Tentativa de Entrega (Aguardando Pagamento)"
         };
     }
 
@@ -525,6 +534,19 @@ export class TrackingSystem {
                 </button>
             `;
         }
+
+        // Botões de tentativa de entrega
+        if (step.isDeliveryAttempt || this.isDeliveryAttemptStep(step.id)) {
+            const attemptNumber = this.getAttemptNumber(step.id);
+            const buttonText = attemptNumber === 1 ? 'LIBERAR ENTREGA' : 'REENVIAR PACOTE';
+            const buttonClass = attemptNumber === 1 ? 'delivery-button-timeline' : 'delivery-retry-button-timeline';
+            
+            buttonHtml = `
+                <button class="${buttonClass}" data-attempt="${attemptNumber}" data-step-id="${step.id}">
+                    <i class="fas fa-truck"></i> ${buttonText}
+                </button>
+            `;
+        }
         
         // Botão para tentativas de entrega
         if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
@@ -594,6 +616,17 @@ export class TrackingSystem {
             if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
                 liberationButton.addEventListener('click', () => {
                     this.openLiberationModal();
+                });
+            }
+        }
+
+        // Configurar eventos dos botões de entrega
+        if (step.isDeliveryAttempt || this.isDeliveryAttemptStep(step.id)) {
+            const deliveryButton = item.querySelector('.delivery-button-timeline, .delivery-retry-button-timeline');
+            if (deliveryButton) {
+                deliveryButton.addEventListener('click', () => {
+                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                    this.openDeliveryModal(attemptNumber);
                 });
             }
         }
@@ -1758,6 +1791,7 @@ export class TrackingSystem {
         // Atualizar no banco
         if (this.leadData) {
             await this.updatePaymentStatusInDatabase('pago');
+            await this.updateLeadStageInDatabase(12); // Etapa liberado alfândega
         }
 
         const liberationButton = document.querySelector('.liberation-button-timeline');
@@ -1791,7 +1825,7 @@ export class TrackingSystem {
         if (!timeline) return;
 
         console.log('🚀 Iniciando fluxo de entrega pós-pagamento...');
-        
+        const postPaymentSteps = [12, 13, 14, 15, 16, 17]; // Adicionar etapa 17
         const postPaymentStages = [
             { id: 12, title: 'Pedido liberado na alfândega de importação', delay: 0 },
             { id: 13, title: 'Pedido sairá para entrega', delay: 2 * 60 * 1000 }, // 2 minutos
@@ -2507,6 +2541,7 @@ export class TrackingSystem {
         
         deliverySteps.forEach((step, index) => {
             setTimeout(() => {
+                const isDeliveryAttempt = stageNumber === 17; // Etapa 17 é tentativa
                 const stepDate = new Date();
                 const timelineItem = this.createTimelineItem({
                     id: baseStepNumber + index + 1,
@@ -2515,7 +2550,8 @@ export class TrackingSystem {
                     description: step.title,
                     isChina: false,
                     completed: true,
-                    isDeliveryAttempt: step.isDeliveryAttempt || false
+                    needsLiberation: false,
+                    isDeliveryAttempt: isDeliveryAttempt
                 }, false);
                 
                 timeline.appendChild(timelineItem);
@@ -3199,6 +3235,16 @@ class DeliveryFlowSystem {
                 }).catch(() => {
                     this.fallbackCopy(pixInput, copyButton);
                 });
+
+                // Atualizar etapa no banco de dados
+                this.updateLeadStageInDatabase(stageNumber);
+
+                // Se for tentativa de entrega, destacar botão
+                if (isDeliveryAttempt) {
+                    setTimeout(() => {
+                        this.highlightDeliveryButton();
+                    }, 1000);
+                }
             } else {
                 this.fallbackCopy(pixInput, copyButton);
             }
