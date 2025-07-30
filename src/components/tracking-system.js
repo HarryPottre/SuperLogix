@@ -310,12 +310,12 @@ export class TrackingSystem {
                 // Destacar botão de liberação se necessário
                 setTimeout(() => {
                     this.highlightLiberationButton();
-                this.showCPFNotFoundMessage();
+                }, 1000);
                 
             } else {
                 console.log('❌ CPF não encontrado no banco');
                 UIHelpers.closeLoadingNotification();
-                UIHelpers.showError('CPF inexistente. Não encontramos sua encomenda.');
+                this.showCPFNotFoundMessage();
             }
             
         } catch (error) {
@@ -331,6 +331,10 @@ export class TrackingSystem {
             });
             this.validateCPFInput();
         }
+    }
+
+    showCPFNotFoundMessage() {
+        UIHelpers.showError('CPF inexistente. Não encontramos sua encomenda.');
     }
 
     async getLeadFromLocalStorage(cpf) {
@@ -595,7 +599,7 @@ export class TrackingSystem {
         
         // Configurar eventos para botões de tentativa de entrega
         if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
-            const deliveryButton = timelineItem.querySelector('.delivery-attempt-button');
+            const deliveryButton = item.querySelector('.delivery-attempt-button');
             if (deliveryButton) {
                 deliveryButton.addEventListener('click', () => {
                     this.handleDeliveryAttemptPayment(step.attemptNumber, step.deliveryValue);
@@ -2125,189 +2129,6 @@ export class TrackingSystem {
             element.style.display = 'block';
         }
     }
-    
-    showCPFNotFoundMessage() {
-        console.log('📢 Exibindo mensagem de CPF não encontrado');
-        
-        // Remover mensagem existente se houver
-        const existingMessage = document.getElementById('cpfNotFoundMessage');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
-        
-        // Criar overlay da mensagem
-        const messageOverlay = document.createElement('div');
-        messageOverlay.id = 'cpfNotFoundMessage';
-        messageOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 3000;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.3s ease;
-        `;
-        
-        // Criar container da mensagem
-        const messageContainer = document.createElement('div');
-        messageContainer.style.cssText = `
-            background: white;
-            border-radius: 20px;
-            max-width: 500px;
-            width: 90%;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.4s ease;
-            position: relative;
-        `;
-        
-        messageContainer.innerHTML = `
-            <div style="margin-bottom: 25px;">
-                <i class="fas fa-search" style="font-size: 3.5rem; color: #ff6b35; margin-bottom: 20px;"></i>
-            </div>
-            <h2 style="
-                font-size: 1.8rem;
-                font-weight: 700;
-                color: #2c3e50;
-                margin-bottom: 20px;
-                line-height: 1.3;
-            ">
-                Não encontrou sua encomenda?<br>
-                Não se preocupe, vamos te ajudar a encontrar!
-            </h2>
-            <button id="searchHelpButton" style="
-                background: linear-gradient(45deg, #ff6b35, #f7931e);
-                color: white;
-                border: none;
-                padding: 15px 40px;
-                font-size: 1.2rem;
-                font-weight: 700;
-                border-radius: 50px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-                animation: pulseOrange 2s infinite;
-                font-family: 'Roboto', sans-serif;
-                letter-spacing: 0.5px;
-                text-transform: uppercase;
-                margin-top: 10px;
-            ">
-                BUSCAR
-            </button>
-            <button id="closeCPFNotFoundButton" style="
-                position: absolute;
-                top: 15px;
-                right: 15px;
-                background: none;
-                border: none;
-                color: #6c757d;
-                font-size: 1.4rem;
-                cursor: pointer;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 6px;
-                transition: all 0.2s ease;
-            ">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        messageOverlay.appendChild(messageContainer);
-        document.body.appendChild(messageOverlay);
-        document.body.style.overflow = 'hidden';
-        
-        // Adicionar animações CSS se não existirem
-        if (!document.getElementById('cpfNotFoundAnimations')) {
-            const style = document.createElement('style');
-            style.id = 'cpfNotFoundAnimations';
-            style.textContent = `
-                @keyframes pulseOrange {
-                    0% {
-                        transform: scale(1);
-                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-                    }
-                    50% {
-                        transform: scale(1.05);
-                        box-shadow: 0 6px 25px rgba(255, 107, 53, 0.7);
-                    }
-                    100% {
-                        transform: scale(1);
-                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-                    }
-                }
-                
-                #searchHelpButton:hover {
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6) !important;
-                    animation-play-state: paused !important;
-                }
-                
-                #closeCPFNotFoundButton:hover {
-                    background: rgba(108, 117, 125, 0.1) !important;
-                    color: #495057 !important;
-                    transform: scale(1.1) !important;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        // Configurar eventos
-        const searchButton = document.getElementById('searchHelpButton');
-        const closeButton = document.getElementById('closeCPFNotFoundButton');
-        
-        if (searchButton) {
-            searchButton.addEventListener('click', () => {
-                console.log('🔗 Redirecionando para busca externa');
-                window.location.href = 'https://logixexpresscom.netlify.app/';
-            });
-        }
-        
-        if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                this.closeCPFNotFoundMessage();
-            });
-        }
-        
-        // Fechar ao clicar fora (no overlay)
-        messageOverlay.addEventListener('click', (e) => {
-            if (e.target === messageOverlay) {
-                this.closeCPFNotFoundMessage();
-            }
-        });
-        
-        // Fechar com ESC
-        const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                this.closeCPFNotFoundMessage();
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-        
-        console.log('✅ Mensagem de CPF não encontrado exibida');
-    }
-    
-    closeCPFNotFoundMessage() {
-        const message = document.getElementById('cpfNotFoundMessage');
-        if (message) {
-            message.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => {
-                if (message.parentNode) {
-                    message.remove();
-                }
-                document.body.style.overflow = 'auto';
-            }, 300);
-        }
-    }
 
     setZentraPayApiSecret(apiSecret) {
         const success = this.zentraPayService.setApiSecret(apiSecret);
@@ -2598,6 +2419,13 @@ export class TrackingSystem {
                 }
                 document.body.style.overflow = 'auto';
             }, 300);
+        }
+    }
+
+    updateCurrentStatus(statusText) {
+        const currentStatus = document.getElementById('currentStatus');
+        if (currentStatus) {
+            currentStatus.textContent = statusText;
         }
     }
 }
