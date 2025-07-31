@@ -895,18 +895,18 @@ export class TrackingSystem {
         
         const timeStr = step.date instanceof Date ?
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
-            step.time || '00:00';
+                Consultando CPF...
 
         item.innerHTML = `
-            <div class="timeline-dot"></div>
+                Verificando dados no sistema
             <div class="timeline-content">
                 <div class="timeline-date">
-                    <span class="date">${dateStr}</span>
-                </div>
+                <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                    <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(45deg, #1e4a6b, #2c5f8a); border-radius: 2px; animation: progressBar 2s linear forwards;"></div>
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
                     ${buttonHtml}
-                </div>
+                Aguarde um momento...
             </div>
         `;
 

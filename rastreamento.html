@@ -810,38 +810,26 @@
         
         // Integrar com o sistema de rastreamento existente
         document.addEventListener('DOMContentLoaded', function() {
-            // Interceptar mensagens de erro de CPF não encontrado
+            // Escutar evento customizado de CPF não encontrado
+            document.addEventListener('cpfNotFound', function(event) {
+                console.log('🎯 Evento cpfNotFound recebido:', event.detail);
+                showCPFNotFoundPopup();
+            });
+            
+            // Interceptar apenas mensagens específicas de erro no console
             const originalConsoleError = console.error;
             console.error = function(...args) {
                 const message = args.join(' ');
-                if (message.includes('CPF não encontrado') || 
-                    message.includes('Lead não encontrado') ||
-                    message.includes('Nenhum resultado encontrado')) {
-                    showCPFNotFoundPopup();
+                // Só mostrar popup para mensagens específicas de CPF não encontrado
+                if (message.includes('CPF não encontrado no sistema - disparando popup de sugestão')) {
+                    setTimeout(() => {
+                        showCPFNotFoundPopup();
+                    }, 500);
                 }
                 originalConsoleError.apply(console, args);
             };
             
-            // Interceptar exibição de mensagens de erro na UI
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    mutation.addedNodes.forEach(function(node) {
-                        if (node.nodeType === 1 && node.textContent) {
-                            const text = node.textContent.toLowerCase();
-                            if (text.includes('cpf não encontrado') || 
-                                text.includes('verifique se o cpf está correto') ||
-                                text.includes('nenhum resultado encontrado')) {
-                                showCPFNotFoundPopup();
-                            }
-                        }
-                    });
-                });
-            });
-            
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
+            console.log('✅ Sistema de detecção de CPF não encontrado configurado');
         });
     </script>
 
