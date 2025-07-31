@@ -497,19 +497,40 @@ export class TrackingSystem {
 
     renderTimeline() {
         const timeline = document.getElementById('trackingTimeline');
-        if (!timeline) return;
+        if (!timeline) {
+            console.error('❌ Timeline container não encontrado');
+            return;
+        }
 
         timeline.innerHTML = '';
+        console.log('🎬 Renderizando timeline...');
         const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
+        console.log('📊 Etapa atual do lead:', currentStage);
         
         this.trackingData.steps.forEach((step, index) => {
             // Mostrar apenas etapas até a etapa atual
-            if (step.id <= Math.max(currentStage, 11)) {
+            if (step && step.id <= currentStage) {
                 const isLast = step.id === currentStage;
-                const timelineItem = this.createTimelineItem(step, isLast);
-                timeline.appendChild(timelineItem);
+                
+                try {
+                    const timelineItem = this.createTimelineItem(step, isCurrentStep);
+                    
+                    // Verificar se o elemento foi criado corretamente
+                    if (timelineItem && timelineItem instanceof Node) {
+                        timeline.appendChild(timelineItem);
+                        console.log(`✅ Etapa ${step.id} adicionada à timeline`);
+                    } else {
+                        console.error(`❌ Elemento inválido para etapa ${step.id}:`, timelineItem);
+                    }
+                } catch (error) {
+                    console.error(`❌ Erro ao criar/adicionar etapa ${step.id}:`, error);
+                }
+            } else if (!step) {
+                console.error(`❌ Step inválido no índice ${index}:`, step);
             }
         });
+        
+        console.log('✅ Timeline renderizada com sucesso');
     }
 
     createTimelineItem(step, isLast) {
