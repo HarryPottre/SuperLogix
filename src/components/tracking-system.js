@@ -896,13 +896,12 @@ export class TrackingSystem {
         
         const timeStr = step.date instanceof Date ?
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
-            step.time || '00:00';
+            '00:00';
 
         item.innerHTML = `
-            <div class="timeline-dot"></div>
             <div class="timeline-content">
                 <div class="timeline-date">
-                    <span class="date">${dateStr}</span>
+                    ${dateStr} ${timeStr}
                 </div>
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
