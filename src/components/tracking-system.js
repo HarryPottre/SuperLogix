@@ -511,7 +511,9 @@ export class TrackingSystem {
         const dateStr = step.date instanceof Date ? 
             step.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) :
             step.date;
-        const timeStr = step.date instanceof Date ?
+        
+        // Botão para Alfândega de Importação (etapa 11)
+        if (step.id === 11 && step.completed) {
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
             step.time || '00:00';
         
@@ -522,6 +524,19 @@ export class TrackingSystem {
             buttonHtml = `
                 <button class="liberation-button-timeline" data-step-id="${step.id}">
                     <i class="fas fa-unlock"></i> LIBERAR OBJETO
+                </button>
+            `;
+        }
+        
+        // Botão para Tentativas de Entrega (etapas 17, 21, 25, 29...)
+        if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
+            const attemptNumber = Math.floor((step.id - 17) / 4) + 1;
+            const deliveryValues = [9.74, 14.98, 18.96];
+            const value = deliveryValues[(attemptNumber - 1) % deliveryValues.length];
+            
+            buttonHtml = `
+                <button class="delivery-button-timeline" data-step-id="${step.id}" data-attempt="${attemptNumber}" data-value="${value}">
+                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
                 </button>
             `;
         }
@@ -589,11 +604,22 @@ export class TrackingSystem {
         `;
         
         // Configurar eventos dos botões
-        if (step.needsLiberation && step.completed) {
+        if (step.id === 11 && step.completed) {
             const liberationButton = item.querySelector('.liberation-button-timeline');
             if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
                 liberationButton.addEventListener('click', () => {
                     this.openLiberationModal();
+                });
+            }
+        }
+        
+        if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
+            const deliveryButton = item.querySelector('.delivery-button-timeline');
+            if (deliveryButton) {
+                deliveryButton.addEventListener('click', () => {
+                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                    const value = parseFloat(deliveryButton.dataset.value);
+                    this.openDeliveryModal(attemptNumber, value);
                 });
             }
         }
@@ -1791,7 +1817,7 @@ export class TrackingSystem {
         if (!timeline) return;
 
         console.log('🚀 Iniciando fluxo de entrega pós-pagamento...');
-        
+        const postPaymentSteps = [12, 13, 14, 15, 16, 17]; // Incluir etapa 17 (1ª tentativa)
         const postPaymentStages = [
             { id: 12, title: 'Pedido liberado na alfândega de importação', delay: 0 },
             { id: 13, title: 'Pedido sairá para entrega', delay: 2 * 60 * 1000 }, // 2 minutos
@@ -2508,15 +2534,19 @@ export class TrackingSystem {
         deliverySteps.forEach((step, index) => {
             setTimeout(() => {
                 const stepDate = new Date();
-                const timelineItem = this.createTimelineItem({
+                
+                // Configurar dados da etapa
+                const stepData = {
                     id: baseStepNumber + index + 1,
                     date: stepDate,
                     title: step.title,
                     description: step.title,
                     isChina: false,
                     completed: true,
-                    isDeliveryAttempt: step.isDeliveryAttempt || false
-                }, false);
+                    needsLiberation: false
+                };
+                
+                const timelineItem = this.createTimelineItem(stepData, index === postPaymentSteps.length - 1);
                 
                 timeline.appendChild(timelineItem);
                 
