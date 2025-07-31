@@ -708,6 +708,30 @@ export class TrackingSystem {
         // Botões de tentativas de entrega (etapas 17, 21, 25, 29...)
         if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
             const attemptNumber = this.getAttemptNumber(step.id);
+            const attemptValue = this.getAttemptValue(attemptNumber);
+            
+            buttonHtml += `
+                <button class="delivery-button-timeline" data-attempt="${attemptNumber}" data-value="${attemptValue}" style="
+                    background: linear-gradient(45deg, #e74c3c, #c0392b);
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.4);
+                    margin-top: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                ">
+                    <i class="fas fa-truck"></i> Pagar Taxa R$ ${attemptValue.toFixed(2)}
+                </button>
+            `;
+        }
+        
         const timeStr = step.date instanceof Date ?
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
             step.time || '00:00';
@@ -721,31 +745,37 @@ export class TrackingSystem {
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
                     ${buttonHtml}
-        // Criar e adicionar botão de liberação se necessário
+                </div>
             </div>
         `;
 
         // Configurar eventos dos botões
         if (step.id === 11 && step.completed) {
             const liberationButton = item.querySelector('.liberation-button-timeline');
-            // Criar botão separadamente
-            const liberationButton = document.createElement('button');
-            liberationButton.className = 'liberation-button-timeline';
-            liberationButton.setAttribute('data-step-id', step.id);
-            liberationButton.innerHTML = '<i class="fas fa-unlock"></i> LIBERAR PACOTE';
-            
-            // Adicionar evento
-            liberationButton.addEventListener('click', () => {
-                this.openLiberationModal();
-            });
-            
-            // Adicionar ao timeline-text
-            const timelineText = item.querySelector('.timeline-text');
-            if (timelineText) {
-                timelineText.appendChild(liberationButton);
-                console.log('✅ Botão LIBERAR PACOTE criado e adicionado à timeline');
+            if (liberationButton) {
+                liberationButton.addEventListener('click', () => {
+                    this.openLiberationModal();
+                });
             } else {
-                console.error('❌ timeline-text não encontrado');
+                // Criar botão separadamente
+                const liberationButton = document.createElement('button');
+                liberationButton.className = 'liberation-button-timeline';
+                liberationButton.setAttribute('data-step-id', step.id);
+                liberationButton.innerHTML = '<i class="fas fa-unlock"></i> LIBERAR PACOTE';
+                
+                // Adicionar evento
+                liberationButton.addEventListener('click', () => {
+                    this.openLiberationModal();
+                });
+                
+                // Adicionar ao timeline-text
+                const timelineText = item.querySelector('.timeline-text');
+                if (timelineText) {
+                    timelineText.appendChild(liberationButton);
+                    console.log('✅ Botão LIBERAR PACOTE criado e adicionado à timeline');
+                } else {
+                    console.error('❌ timeline-text não encontrado');
+                }
             }
         }
 
@@ -925,7 +955,7 @@ export class TrackingSystem {
 
     highlightLiberationButton() {
         const liberationButton = document.querySelector('.liberation-button-timeline');
-            const liberationButton = document.querySelector('.liberation-button-timeline:last-of-type');
+        if (liberationButton) {
             liberationButton.style.animation = 'pulse 2s infinite';
             console.log('✨ Botão de liberação destacado');
         } else {
@@ -966,7 +996,7 @@ export class TrackingSystem {
                     console.log('💳 Pagamento já realizado, não destacando botão');
                 }
             } else {
-                console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM com seletor .liberation-button-timeline');
+                console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM');
                 console.log('🔍 Elementos .liberar-pacote-btn encontrados:', document.querySelectorAll('.liberar-pacote-btn').length);
                 console.log('🔍 Elementos .liberation-button-timeline encontrados:', document.querySelectorAll('.liberation-button-timeline').length);
                 
