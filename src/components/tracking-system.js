@@ -569,6 +569,10 @@ export class TrackingSystem {
                 </button>
             `;
         }
+        // Determinar se é a etapa atual
+        const currentStage = this.leadData ? this.leadData.etapa_atual : 11;
+        const isCurrentStep = stepData.id === currentStage;
+        
         
         // Botões de tentativas de entrega (etapas 17, 21, 25, 29...)
         if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
