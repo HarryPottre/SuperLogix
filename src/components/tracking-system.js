@@ -1320,7 +1320,17 @@ export class TrackingSystem {
     }
 
     processSuccessfulPayment() {
-        console.log('Processando pagamento bem-sucedido...');
+        console.log('✅ Processando pagamento bem-sucedido...');
+        
+        // Ocultar botão LIBERAR PACOTE
+        this.hideLiberationButton();
+        
+        // Fechar modal de liberação
+        const modal = document.getElementById('liberationModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
         
         // Mostrar notificação de sucesso
         this.showPaymentSuccessNotification();
@@ -1341,6 +1351,28 @@ export class TrackingSystem {
             
             console.log('✅ Pagamento processado, etapas atualizadas');
         }
+        
+        // Scroll suave para a próxima etapa após 3 segundos
+        setTimeout(() => {
+            const nextStep = document.querySelector('.timeline-item.last');
+            if (nextStep) {
+                nextStep.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+        }, 3000);
+    }
+    
+    // Ocultar botão LIBERAR PACOTE após pagamento confirmado
+    hideLiberationButton() {
+        const liberationButtons = document.querySelectorAll('.liberation-button-timeline');
+        liberationButtons.forEach(button => {
+            if (button) {
+                button.style.display = 'none';
+                console.log('🔒 Botão LIBERAR PACOTE ocultado após pagamento confirmado');
+            }
+        });
     }
     
     showPaymentError() {
@@ -1485,5 +1517,3 @@ export class TrackingSystem {
         UIHelpers.showError(message);
     }
 }
-
-    
