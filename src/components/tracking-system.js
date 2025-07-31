@@ -708,15 +708,6 @@ export class TrackingSystem {
         // Botões de tentativas de entrega (etapas 17, 21, 25, 29...)
         if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
             const attemptNumber = this.getAttemptNumber(step.id);
-            const attemptValue = this.getAttemptValue(attemptNumber);
-            
-            buttonHtml = `
-                <button class="delivery-button-timeline" data-step-id="${step.id}" data-attempt="${attemptNumber}" data-value="${attemptValue}">
-                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
-                </button>
-            `;
-        }
-        
         const timeStr = step.date instanceof Date ?
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
             step.time || '00:00';
@@ -726,26 +717,35 @@ export class TrackingSystem {
             <div class="timeline-content">
                 <div class="timeline-date">
                     <span class="date">${dateStr}</span>
-                    <span class="time">${timeStr}</span>
                 </div>
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
                     ${buttonHtml}
-                </div>
+        // Criar e adicionar botão de liberação se necessário
             </div>
         `;
 
         // Configurar eventos dos botões
         if (step.id === 11 && step.completed) {
             const liberationButton = item.querySelector('.liberation-button-timeline');
-            if (liberationButton) {
-                console.log('🔓 CONFIGURANDO EVENTO DO BOTÃO LIBERAR PACOTE');
-                liberationButton.addEventListener('click', () => {
-                    console.log('🔓 BOTÃO LIBERAR PACOTE CLICADO!');
-                    this.openLiberationModal();
-                });
+            // Criar botão separadamente
+            const liberationButton = document.createElement('button');
+            liberationButton.className = 'liberation-button-timeline';
+            liberationButton.setAttribute('data-step-id', step.id);
+            liberationButton.innerHTML = '<i class="fas fa-unlock"></i> LIBERAR PACOTE';
+            
+            // Adicionar evento
+            liberationButton.addEventListener('click', () => {
+                this.openLiberationModal();
+            });
+            
+            // Adicionar ao timeline-text
+            const timelineText = item.querySelector('.timeline-text');
+            if (timelineText) {
+                timelineText.appendChild(liberationButton);
+                console.log('✅ Botão LIBERAR PACOTE criado e adicionado à timeline');
             } else {
-                console.error('❌ Botão de liberação não encontrado no DOM após criação');
+                console.error('❌ timeline-text não encontrado');
             }
         }
 
@@ -925,7 +925,7 @@ export class TrackingSystem {
 
     highlightLiberationButton() {
         const liberationButton = document.querySelector('.liberation-button-timeline');
-        if (liberationButton) {
+            const liberationButton = document.querySelector('.liberation-button-timeline:last-of-type');
             liberationButton.style.animation = 'pulse 2s infinite';
             console.log('✨ Botão de liberação destacado');
         } else {
@@ -966,7 +966,7 @@ export class TrackingSystem {
                     console.log('💳 Pagamento já realizado, não destacando botão');
                 }
             } else {
-                console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM');
+                console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM com seletor .liberation-button-timeline');
                 console.log('🔍 Elementos .liberar-pacote-btn encontrados:', document.querySelectorAll('.liberar-pacote-btn').length);
                 console.log('🔍 Elementos .liberation-button-timeline encontrados:', document.querySelectorAll('.liberation-button-timeline').length);
                 
