@@ -514,6 +514,7 @@ export class TrackingSystem {
         const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
         
         // Botão de liberação alfandegária (etapa 11)
+        let buttonHtml = '';
         if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
             buttonHtml = `
                 <button class="liberation-button-timeline" data-step-id="${step.id}">
@@ -1800,99 +1801,30 @@ export class TrackingSystem {
     }
 
     async processSuccessfulPayment() {
-        // Atualizar dados de rastreamento
         if (this.trackingData) {
             this.trackingData.liberationPaid = true;
         }
-        
-        // Atualizar status no banco de dados
+
+        // Atualizar no banco
         if (this.leadData) {
             await this.updatePaymentStatusInDatabase('pago');
-            await this.updateLeadStageInDatabase(12); // Avançar para etapa 12
         }
-        
-        // Ocultar botão de liberação
+
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
             liberationButton.style.display = 'none';
         }
-        
-        // Mostrar notificação de sucesso
+
         this.showSuccessNotification();
-        
-        // Adicionar etapas pós-pagamento
+
+        // Iniciar fluxo de entrega após pagamento da taxa alfandegária
         setTimeout(() => {
-            this.addPostPaymentSteps();
+            this.startDeliveryFlow();
         }, 1000);
-    }
-    
-    // Adicionar etapas após pagamento da taxa alfandegária
-    addPostPaymentSteps() {
-        const timeline = document.getElementById('trackingTimeline');
-        if (!timeline) return;
-        
-        const postPaymentSteps = [
-            { id: 12, title: 'Pedido liberado na alfândega de importação' },
-            { id: 13, title: 'Pedido sairá para entrega' },
-            { id: 14, title: 'Pedido em trânsito entrega' },
-            { id: 15, title: 'Pedido em rota de entrega' },
-            { id: 16, title: 'Tentativa entrega' },
-            { id: 17, title: 'Tentativa entrega' }
-        ];
-        
-        postPaymentSteps.forEach((step, index) => {
-            setTimeout(() => {
-                const timelineItem = this.createTimelineItem({
-                    ...step,
-                    date: new Date(),
-                    description: step.title,
-                    completed: true,
-                    isChina: false,
-                    needsLiberation: false
-                }, index === postPaymentSteps.length - 1);
-                
-                timeline.appendChild(timelineItem);
-                
-                setTimeout(() => {
-                    timelineItem.style.opacity = '1';
-                    timelineItem.style.transform = 'translateY(0)';
-                }, 100);
-                
-                timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                // Atualizar etapa no banco na última iteração
-                if (index === postPaymentSteps.length - 1) {
-                    this.updateLeadStageInDatabase(step.id);
-                }
-            }, index * 2000);
-        });
-    }
-    
-    // Atualizar etapa do lead no banco
-    async updateLeadStageInDatabase(newStage) {
-        if (this.currentCPF) {
-            try {
-                const leads = JSON.parse(localStorage.getItem('leads') || '[]');
-                const leadIndex = leads.findIndex(l => l.cpf && l.cpf.replace(/[^\d]/g, '') === this.currentCPF);
-                
-                if (leadIndex !== -1) {
-                    leads[leadIndex].etapa_atual = newStage;
-                    leads[leadIndex].updated_at = new Date().toISOString();
-                    localStorage.setItem('leads', JSON.stringify(leads));
-                    
-                    // Atualizar dados locais
-                    this.leadData.etapa_atual = newStage;
-                    
-                    console.log('✅ Etapa do lead atualizada para:', newStage);
-                }
-            } catch (error) {
-                console.error('❌ Erro ao atualizar etapa no banco:', error);
-            }
-        }
     }
 
     startDeliveryFlow() {
-        console.log('🚚 Iniciando fluxo de entrega após pagamento da taxa alfandegária...');
+        console.log('🚚 Iniciando fluxo de entrega após liberação alfandegária...');
         
         // Inicializar sistema de entrega se não existir
         if (!this.deliverySystem) {
@@ -2836,6 +2768,36 @@ class DeliveryFlowSystem {
         
         if (hasPaymentButton && isDeliveryAttempt) {
             const attemptNumber = this.deliveryAttempts + 1;
+            const value = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
+            
+            buttonHtml = `
+                <button class="delivery-retry-btn" 
+                        data-attempt="${this.deliveryAttempts}" 
+                        data-value="${value}"
+                        style="
+                            background: linear-gradient(45deg, #e74c3c, #c0392b);
+                            color: white;
+                            border: none;
+                            padding: 12px 25px;
+                            font-size: 1rem;
+                            font-weight: 700;
+                            border-radius: 25px;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+                            animation: pulse 2s infinite;
+                            font-family: 'Roboto', sans-serif;
+                            letter-spacing: 0.5px;
+                            margin-top: 15px;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                        ">
+                    <i class="fas fa-truck"></i> REAGENDAR ENTREGA
+                </button>
+            `;
+        }
+        
         item.innerHTML = `
             <div class="timeline-dot"></div>
             <div class="timeline-content">
@@ -2851,22 +2813,10 @@ class DeliveryFlowSystem {
         `;
 
         // Configurar eventos dos botões de liberação alfandegária
-        if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
+        if (hasPaymentButton && isDeliveryAttempt) {
             const retryButton = item.querySelector('.delivery-retry-btn');
             if (retryButton) {
                 this.configureDeliveryRetryButton(retryButton);
-            }
-        }
-        
-        // Configurar eventos dos botões de tentativas de entrega
-        if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
-            const deliveryButton = timelineItem.querySelector('.delivery-button-timeline');
-            if (deliveryButton) {
-                deliveryButton.addEventListener('click', () => {
-                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
-                    const attemptValue = parseFloat(deliveryButton.dataset.value);
-                    this.openDeliveryModal(attemptNumber, attemptValue);
-                });
             }
         }
 
