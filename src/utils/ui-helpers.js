@@ -118,7 +118,7 @@ export class UIHelpers {
         errorDiv.textContent = message;
 
         const form = document.querySelector('.tracking-form');
-        if (form) {
+        if (form && errorDiv instanceof Node) {
             form.appendChild(errorDiv);
 
             setTimeout(() => {
@@ -127,6 +127,8 @@ export class UIHelpers {
                     setTimeout(() => errorDiv.remove(), 300);
                 }
             }, 5000);
+        } else if (form && !errorDiv instanceof Node) {
+            console.error('Error: errorDiv is not a valid DOM Node', errorDiv);
         }
     }
 
