@@ -13,7 +13,7 @@ export class ZentraPayService {
         // Nova chave API Secret oficial
         const apiSecret = window.ZENTRA_PAY_SECRET_KEY || 
                          localStorage.getItem('zentra_pay_secret_key') ||
-                         'sk_a7da0a8cfc7bac4836572ab2068fd3059493dd63a97ab76ceb5dd46b50a9941f654da937b48ae2a4ded1468217c0291be0eccc264ecd9e92ca9eff27231c968e';
+                         'sk_ab923f7fd51de54a45f835645cae6c73c9ac37e65e28b79fd7d13efb030d74c6cebab32534d07a5f80a871196121732a129ef02e3732504b1a56b8d1972ebbf1';
         
         if (apiSecret && apiSecret.startsWith('sk_')) {
             console.log('✅ API Secret Zentra Pay válida encontrada');
