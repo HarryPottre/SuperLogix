@@ -433,7 +433,20 @@ export class TrackingSystem {
             13: 'Pedido sairá para entrega',
             14: 'Pedido em trânsito entrega',
             15: 'Pedido em rota de entrega',
-            16: 'Tentativa entrega'
+            16: 'Tentativa entrega',
+            17: "1ª Tentativa de entrega - Taxa de reenvio necessária",
+            18: "Reagendamento da entrega",
+            19: "Pedido em trânsito para nova entrega",
+            20: "Pedido em rota de entrega",
+            21: "2ª Tentativa de entrega - Taxa de reenvio necessária",
+            22: "Reagendamento da entrega",
+            23: "Pedido em trânsito para nova entrega", 
+            24: "Pedido em rota de entrega",
+            25: "3ª Tentativa de entrega - Taxa de reenvio necessária",
+            26: "Reagendamento da entrega",
+            27: "Pedido em trânsito para nova entrega",
+            28: "Pedido em rota de entrega",
+            29: "4ª Tentativa de entrega - Taxa de reenvio necessária"
         };
     }
 
@@ -532,7 +545,6 @@ export class TrackingSystem {
                 </button>
             `;
         }
-        
         // Botão para Alfândega de Importação (etapa 11)
         if (step.id === 11 && step.completed) {
             const timeStr = step.date instanceof Date ?
@@ -2647,28 +2659,44 @@ export class TrackingSystem {
 
     scrollToElement(element, offset = 0) {
         if (element) {
-            const elementPosition = element.offsetTop - offset;
+            const elementPosition = element.offsetTop;
+            const offsetPosition = elementPosition - offset;
+            
             window.scrollTo({
-                top: elementPosition,
+                top: offsetPosition,
                 behavior: 'smooth'
             });
         }
     }
 
     showError(message) {
-        console.error('Error:', message);
-        // You can implement a proper error display here
-        alert(message);
+        console.error('Erro:', message);
+        // Implementar exibição de erro na UI se necessário
     }
 
     showLoadingNotification() {
-        // Implementation for showing loading notification
-        console.log('Loading...');
+        UIHelpers.showLoadingNotification();
     }
 
     closeLoadingNotification() {
-        // Implementation for closing loading notification
-        console.log('Loading closed');
+        UIHelpers.closeLoadingNotification();
+    }
+
+    isDeliveryAttemptStage(stageId) {
+        // Etapas de tentativa de entrega: 17, 21, 25, 29...
+        return stageId >= 17 && (stageId - 17) % 4 === 0;
+    }
+
+    getAttemptNumber(stageId) {
+        if (stageId >= 17 && (stageId - 17) % 4 === 0) {
+            return Math.floor((stageId - 17) / 4) + 1;
+        }
+        return 1;
+    }
+
+    getAttemptValue(attemptNumber) {
+        const values = [7.74, 12.38, 16.46];
+        return values[(attemptNumber - 1) % values.length];
     }
 }
 
@@ -2837,7 +2865,7 @@ class DeliveryFlowSystem {
             </div>
         `;
 
-        // Configurar eventos dos botões de reagendamento
+        // Configurar eventos dos botões de liberação alfandegária
         if (hasPaymentButton && isDeliveryAttempt) {
             const retryButton = item.querySelector('.delivery-retry-btn');
             if (retryButton) {
