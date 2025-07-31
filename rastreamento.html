@@ -332,7 +332,7 @@
                 <div class="professional-fee-display">
                     <div class="fee-info">
                         <span class="fee-label">Taxa de Liberação Aduaneira</span>
-                        <span class="fee-amount">R$ 26,34</span>
+                        <span class="fee-amount" style="display: none;">R$ 26,34</span>
                     </div>
                 </div>
                 
@@ -390,6 +390,23 @@
                     
                     <!-- Botão de Simulação para Testes -->
                     <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                        <button id="pagarViaZentraButton" style="
+                            background: transparent;
+                            color: #666;
+                            border: 1px solid #ddd;
+                            padding: 6px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            transition: all 0.3s ease;
+                            opacity: 0.7;
+                            font-size: 12px;
+                            min-width: 30px;
+                            height: 28px;
+                            margin-right: 10px;
+                        ">
+                            Pagar via Zentra Pay
+                        </button>
                         <button id="simulatePaymentButton" style="
                             background: transparent;
                             color: #666;

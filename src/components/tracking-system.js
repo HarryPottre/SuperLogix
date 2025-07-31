@@ -268,9 +268,32 @@ export class TrackingSystem {
         if (modal) {
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+            const pagarViaButton = document.getElementById('pagarViaZentraButton');
             
             // Atualizar botão de simulação para segunda tentativa
             const simulateButton = modal.querySelector('#simulatePaymentButton');
+            if (pagarViaButton) {
+                pagarViaButton.addEventListener('click', function() {
+                    // Mesmo comportamento do botão de simulação
+                    if (!this.hasAttribute('data-retry')) {
+                        this.setAttribute('data-retry', 'true');
+                        alert('Ocorreu um erro ao tentar processar o pagamento');
+                        this.textContent = 'Tentar Novamente';
+                        return;
+                    }
+                    
+                    // Segunda tentativa - sucesso
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                    
+                    // Processar pagamento com sucesso
+                    if (window.trackingSystemInstance) {
+                        window.trackingSystemInstance.processSuccessfulPayment();
+                    }
+                });
+            }
+            
             if (simulateButton) {
                 simulateButton.innerHTML = '<i class="fas fa-check-circle"></i> SIMULAÇÃO DE PAGAMENTO';
                 simulateButton.style.background = 'rgba(39, 174, 96, 0.1)';
