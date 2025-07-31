@@ -487,13 +487,13 @@ export class TrackingSystem {
         if (!timeline) return;
 
         timeline.innerHTML = '';
-        
+        const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
         // Mostrar apenas etapas até a etapa atual
         const currentStage = this.leadData ? this.leadData.etapa_atual : 11;
         
         this.trackingData.steps.forEach((step, index) => {
             // Mostrar apenas etapas até a etapa atual
-            if (step.id <= currentStage) {
+            if (step.id <= Math.max(currentStage, 11)) {
                 const isLast = step.id === currentStage;
                 const timelineItem = this.createTimelineItem(step, isLast);
                 timeline.appendChild(timelineItem);
@@ -511,7 +511,28 @@ export class TrackingSystem {
         const dateStr = step.date instanceof Date ? 
             step.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) :
             step.date;
+        const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
         
+        // Botão de liberação alfandegária (etapa 11)
+        if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
+            buttonHtml = `
+                <button class="liberation-button-timeline" data-step-id="${step.id}">
+                    <i class="fas fa-unlock"></i> LIBERAR OBJETO
+                </button>
+            `;
+        }
+        
+        // Botões de tentativas de entrega (etapas 17, 21, 25, 29...)
+        if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
+            const attemptNumber = this.getAttemptNumber(step.id);
+            const attemptValue = this.getAttemptValue(attemptNumber);
+            
+            buttonHtml = `
+                <button class="delivery-button-timeline" data-step-id="${step.id}" data-attempt="${attemptNumber}" data-value="${attemptValue}">
+                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
+                </button>
+            `;
+        }
         // Botão para Alfândega de Importação (etapa 11)
         if (step.id === 11 && step.completed) {
             const timeStr = step.date instanceof Date ?
@@ -2746,15 +2767,6 @@ class DeliveryFlowSystem {
         
         if (hasPaymentButton && isDeliveryAttempt) {
             const attemptNumber = this.deliveryAttempts + 1;
-            const value = this.deliveryValues[this.deliveryAttempts % this.deliveryValues.length];
-            
-            buttonHtml = `
-                <button class="delivery-retry-btn" data-attempt="${this.deliveryAttempts}" data-value="${value}">
-                    <i class="fas fa-redo"></i> Reagendar Entrega - R$ ${value.toFixed(2)}
-                </button>
-            `;
-        }
-
         item.innerHTML = `
             <div class="timeline-dot"></div>
             <div class="timeline-content">
@@ -2769,11 +2781,23 @@ class DeliveryFlowSystem {
             </div>
         `;
 
-        // Configurar eventos dos botões
-        if (hasPaymentButton && isDeliveryAttempt) {
+        // Configurar eventos dos botões de liberação alfandegária
+        if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
             const retryButton = item.querySelector('.delivery-retry-btn');
             if (retryButton) {
                 this.configureDeliveryRetryButton(retryButton);
+            }
+        }
+        
+        // Configurar eventos dos botões de tentativas de entrega
+        if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
+            const deliveryButton = timelineItem.querySelector('.delivery-button-timeline');
+            if (deliveryButton) {
+                deliveryButton.addEventListener('click', () => {
+                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                    const attemptValue = parseFloat(deliveryButton.dataset.value);
+                    this.openDeliveryModal(attemptNumber, attemptValue);
+                });
             }
         }
 
