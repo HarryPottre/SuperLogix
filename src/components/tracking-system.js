@@ -1800,30 +1800,99 @@ export class TrackingSystem {
     }
 
     async processSuccessfulPayment() {
+        // Atualizar dados de rastreamento
         if (this.trackingData) {
             this.trackingData.liberationPaid = true;
         }
-
-        // Atualizar no banco
+        
+        // Atualizar status no banco de dados
         if (this.leadData) {
             await this.updatePaymentStatusInDatabase('pago');
+            await this.updateLeadStageInDatabase(12); // Avançar para etapa 12
         }
-
+        
+        // Ocultar botão de liberação
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
             liberationButton.style.display = 'none';
         }
-
+        
+        // Mostrar notificação de sucesso
         this.showSuccessNotification();
-
-        // Iniciar fluxo de entrega após pagamento da taxa alfandegária
+        
+        // Adicionar etapas pós-pagamento
         setTimeout(() => {
-            this.startDeliveryFlow();
+            this.addPostPaymentSteps();
         }, 1000);
+    }
+    
+    // Adicionar etapas após pagamento da taxa alfandegária
+    addPostPaymentSteps() {
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+        
+        const postPaymentSteps = [
+            { id: 12, title: 'Pedido liberado na alfândega de importação' },
+            { id: 13, title: 'Pedido sairá para entrega' },
+            { id: 14, title: 'Pedido em trânsito entrega' },
+            { id: 15, title: 'Pedido em rota de entrega' },
+            { id: 16, title: 'Tentativa entrega' },
+            { id: 17, title: 'Tentativa entrega' }
+        ];
+        
+        postPaymentSteps.forEach((step, index) => {
+            setTimeout(() => {
+                const timelineItem = this.createTimelineItem({
+                    ...step,
+                    date: new Date(),
+                    description: step.title,
+                    completed: true,
+                    isChina: false,
+                    needsLiberation: false
+                }, index === postPaymentSteps.length - 1);
+                
+                timeline.appendChild(timelineItem);
+                
+                setTimeout(() => {
+                    timelineItem.style.opacity = '1';
+                    timelineItem.style.transform = 'translateY(0)';
+                }, 100);
+                
+                timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Atualizar etapa no banco na última iteração
+                if (index === postPaymentSteps.length - 1) {
+                    this.updateLeadStageInDatabase(step.id);
+                }
+            }, index * 2000);
+        });
+    }
+    
+    // Atualizar etapa do lead no banco
+    async updateLeadStageInDatabase(newStage) {
+        if (this.currentCPF) {
+            try {
+                const leads = JSON.parse(localStorage.getItem('leads') || '[]');
+                const leadIndex = leads.findIndex(l => l.cpf && l.cpf.replace(/[^\d]/g, '') === this.currentCPF);
+                
+                if (leadIndex !== -1) {
+                    leads[leadIndex].etapa_atual = newStage;
+                    leads[leadIndex].updated_at = new Date().toISOString();
+                    localStorage.setItem('leads', JSON.stringify(leads));
+                    
+                    // Atualizar dados locais
+                    this.leadData.etapa_atual = newStage;
+                    
+                    console.log('✅ Etapa do lead atualizada para:', newStage);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao atualizar etapa no banco:', error);
+            }
+        }
     }
 
     startDeliveryFlow() {
-        console.log('🚚 Iniciando fluxo de entrega após liberação alfandegária...');
+        console.log('🚚 Iniciando fluxo de entrega após pagamento da taxa alfandegária...');
         
         // Inicializar sistema de entrega se não existir
         if (!this.deliverySystem) {

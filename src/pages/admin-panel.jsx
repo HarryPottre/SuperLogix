@@ -40,7 +40,20 @@ class AdminPanel {
             { id: 13, name: "Sairá para entrega" },
             { id: 14, name: "Em trânsito entrega" },
             { id: 15, name: "Rota de entrega" },
-            { id: 16, name: "Tentativa entrega" }
+            { id: 16, name: "Tentativa entrega" },
+            { id: 17, name: "1ª Tentativa entrega" },
+            { id: 18, name: "Reagendamento solicitado" },
+            { id: 19, name: "Em rota de entrega" },
+            { id: 20, name: "Saindo para entrega" },
+            { id: 21, name: "2ª Tentativa entrega" },
+            { id: 22, name: "Reagendamento solicitado" },
+            { id: 23, name: "Em rota de entrega" },
+            { id: 24, name: "Saindo para entrega" },
+            { id: 25, name: "3ª Tentativa entrega" },
+            { id: 26, name: "Reagendamento solicitado" },
+            { id: 27, name: "Em rota de entrega" },
+            { id: 28, name: "Saindo para entrega" },
+            { id: 29, name: "4ª Tentativa entrega" }
         ];
         
         console.log('🎛️ AdminPanel inicializado');
@@ -770,7 +783,7 @@ class AdminPanel {
 
     // Obter ordem das etapas
     getStageOrder() {
-        return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
     }
 
     // Obter nome da etapa
@@ -791,7 +804,20 @@ class AdminPanel {
             13: '13 - Sairá para entrega',
             14: '14 - Em trânsito entrega',
             15: '15 - Rota de entrega',
-            16: '16 - Tentativa entrega'
+            16: '16 - Tentativa entrega',
+            17: '17 - 1ª Tentativa entrega',
+            18: '18 - Reagendamento solicitado',
+            19: '19 - Em rota de entrega',
+            20: '20 - Saindo para entrega',
+            21: '21 - 2ª Tentativa entrega',
+            22: '22 - Reagendamento solicitado',
+            23: '23 - Em rota de entrega',
+            24: '24 - Saindo para entrega',
+            25: '25 - 3ª Tentativa entrega',
+            26: '26 - Reagendamento solicitado',
+            27: '27 - Em rota de entrega',
+            28: '28 - Saindo para entrega',
+            29: '29 - 4ª Tentativa entrega'
         };
         
         return stageNames[stageNumber] || `Etapa ${stageNumber}`;
@@ -2755,9 +2781,19 @@ class AdminPanel {
             15: 'Rota de entrega',
             16: '1ª Tentativa entrega',
             // Ciclos de tentativas
-            106: '2ª Tentativa entrega',
-            116: '3ª Tentativa entrega',
-            126: '1ª Tentativa entrega (Ciclo 2)'
+            17: '1ª Tentativa entrega',
+            18: 'Reagendamento solicitado',
+            19: 'Em rota de entrega',
+            20: 'Saindo para entrega',
+            21: '2ª Tentativa entrega',
+            22: 'Reagendamento solicitado',
+            23: 'Em rota de entrega',
+            24: 'Saindo para entrega',
+            25: '3ª Tentativa entrega',
+            26: 'Reagendamento solicitado',
+            27: 'Em rota de entrega',
+            28: 'Saindo para entrega',
+            29: '4ª Tentativa entrega'
         };
         
         return stageNames[etapa] || `Etapa ${etapa}`;
@@ -3171,7 +3207,7 @@ class AdminPanel {
             }
 
             const currentStage = leads[leadIndex].etapa_atual || 1;
-            if (currentStage < 16) {
+            if (currentStage < 29) {
                 leads[leadIndex].etapa_atual = currentStage + 1;
                 leads[leadIndex].updated_at = new Date().toISOString();
             }
@@ -3267,7 +3303,7 @@ class AdminPanel {
                     // Executar ação
                     switch (action) {
                         case 'next':
-                            if (leads[leadIndex].etapa_atual < 16) {
+                            if (leads[leadIndex].etapa_atual < 29) {
                                 leads[leadIndex].etapa_atual++;
                             }
                             break;
@@ -3429,7 +3465,7 @@ class AdminPanel {
                     try {
                         switch (action) {
                             case 'next':
-                                if (leads[leadIndex].etapa_atual < 16) {
+                                if (leads[leadIndex].etapa_atual < 29) {
                                     leads[leadIndex].etapa_atual++;
                                     leads[leadIndex].updated_at = new Date().toISOString();
                                     successCount++;
