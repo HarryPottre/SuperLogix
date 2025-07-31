@@ -641,4 +641,24 @@ export class TrackingSystem {
         return values[attemptNumber - 1] || 7.74;
     }
 
+    isDeliveryAttemptStage(stageId) {
+        return [17, 21, 25, 29].includes(stageId);
+    }
+
+    getAttemptNumber(stageId) {
+        const attemptMap = {
+            17: 1,
+            21: 2,
+            25: 3,
+            29: 4
+        };
+        return attemptMap[stageId] || 1;
+    }
+
+    getAttemptValue(attemptNumber) {
+        const values = [7.74, 12.38, 16.46];
+        return values[attemptNumber - 1] || 7.74;
+    }
+}
+
     
