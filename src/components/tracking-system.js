@@ -248,7 +248,7 @@ export class TrackingSystem {
         const cpfInput = document.getElementById('cpfInput');
         if (!cpfInput) {
             console.error('Campo CPF não encontrado');
-            UIHelpers.showError('Campo CPF não encontrado. Recarregue a página.');
+            this.showError('Campo CPF não encontrado. Recarregue a página.');
             return;
         }
 
@@ -260,12 +260,12 @@ export class TrackingSystem {
 
         if (!CPFValidator.isValidCPF(cpfValue)) {
             console.log('CPF inválido');
-            UIHelpers.showError('Por favor, digite um CPF válido com 11 dígitos.');
+            this.showError('Por favor, digite um CPF válido com 11 dígitos.');
             return;
         }
 
         console.log('CPF válido, buscando APENAS no banco...');
-        UIHelpers.showLoadingNotification();
+        this.showLoadingNotification();
 
         const trackButtons = document.querySelectorAll('#trackButton, .track-button, button[type="submit"]');
         const originalTexts = [];
@@ -294,7 +294,7 @@ export class TrackingSystem {
                 this.leadData = dbResult.data;
                 this.currentCPF = cleanCPF;
                 
-                UIHelpers.closeLoadingNotification();
+                this.closeLoadingNotification();
                 
                 console.log('📋 Exibindo dados do banco...');
                 this.displayOrderDetailsFromDatabase();
@@ -304,7 +304,7 @@ export class TrackingSystem {
                 
                 const orderDetails = document.getElementById('orderDetails');
                 if (orderDetails) {
-                    UIHelpers.scrollToElement(orderDetails, 100);
+                if (orderDetails) this.scrollToElement(orderDetails, 100);
                 }
                 
                 // Destacar botão de liberação se necessário
@@ -314,8 +314,8 @@ export class TrackingSystem {
                 
             } else {
                 console.log('❌ CPF não encontrado no banco');
-                UIHelpers.closeLoadingNotification();
-                UIHelpers.showError("CPF inexistente. Verifique se digitou corretamente.");
+                this.closeLoadingNotification();
+                this.showError('CPF inexistente. Não encontramos sua encomenda.');
                 
                 // Mostrar pop-up discreta após 2 segundos
                 setTimeout(() => {
@@ -325,8 +325,8 @@ export class TrackingSystem {
             
         } catch (error) {
             console.error('Erro no processo:', error);
-            UIHelpers.closeLoadingNotification();
-            UIHelpers.showError('Erro ao consultar CPF. Tente novamente.');
+            this.closeLoadingNotification();
+            this.showError('Erro ao consultar CPF. Tente novamente.');
         } finally {
             trackButtons.forEach((button, index) => {
                 if (button.textContent && originalTexts[index]) {
