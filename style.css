@@ -525,8 +525,8 @@ body {
         box-shadow: 0 4px 15px rgba(30, 74, 107, 0.5) !important;
     }
     50% {
-        transform: scale(1.08) !important;
-        box-shadow: 0 8px 30px rgba(30, 74, 107, 0.9) !important;
+        transform: scale(1.03) !important;
+        box-shadow: 0 6px 20px rgba(30, 74, 107, 0.7) !important;
     }
     100% {
         transform: scale(1) !important;
