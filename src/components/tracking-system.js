@@ -1334,6 +1334,27 @@ export class TrackingSystem {
         }
     }
 
+    // Mostrar modal de liberação
+    showLiberationModal() {
+        const modal = document.getElementById('liberationModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            console.log('📋 Modal de liberação exibido');
+        }
+    }
+    
+    // Fechar modal de liberação
+    closeLiberationModal() {
+        const modal = document.getElementById('liberationModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            console.log('📋 Modal de liberação fechado');
+        }
+    }
+    
+    // Processar pagamento bem-sucedido
     processSuccessfulPayment() {
         console.log('✅ Processando pagamento bem-sucedido...');
         
