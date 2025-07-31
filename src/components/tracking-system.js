@@ -2797,7 +2797,7 @@ class DeliveryFlowSystem {
                 </button>
             `;
         }
-        
+
         item.innerHTML = `
             <div class="timeline-dot"></div>
             <div class="timeline-content">
