@@ -227,8 +227,8 @@ export class TrackingSystem {
         
         trackButtons.forEach(button => {
             if (button.textContent && button.textContent.toLowerCase().includes('rastrear')) {
-                if (cleanCPF.length === 11) {
-                    button.disabled = false;
+            if (step.id <= leadCurrentStage) {
+                const isCurrentStep = step.id === leadCurrentStage;
                     button.style.opacity = '1';
                     button.style.cursor = 'pointer';
                     cpfInput.style.borderColor = '#27ae60';
@@ -515,7 +515,7 @@ export class TrackingSystem {
         if (!timeline) {
             console.error('❌ Timeline container não encontrado');
             return;
-        }
+        const leadCurrentStage = this.leadData ? this.leadData.etapa_atual : 11;
 
         timeline.innerHTML = '';
         console.log('🎬 Renderizando timeline...');
