@@ -89,27 +89,28 @@ export class TrackingSystem {
         const modal = document.getElementById('liberationModal');
         
         if (simulateButton) {
-            console.log('🔧 Configurando botão de simulação [-]');
+            console.log('🔧 CONFIGURANDO BOTÃO DE SIMULAÇÃO [-]');
             simulateButton.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('🎭 Botão de simulação clicado:', simulateButton.textContent);
+                console.log('🎭 BOTÃO DE SIMULAÇÃO CLICADO:', simulateButton.textContent);
                 
                 // Simular erro na primeira tentativa
                 if (!simulateButton.hasAttribute('data-retry')) {
-                    console.log('❌ Primeira tentativa - simulando erro');
+                    console.log('❌ PRIMEIRA TENTATIVA - SIMULANDO ERRO');
                     simulateButton.setAttribute('data-retry', 'true');
                     
                     // Mostrar erro mais realista
                     this.showPaymentError();
                     simulateButton.textContent = '--';
                     simulateButton.style.background = '#e74c3c';
+                    simulateButton.style.color = 'white';
                     
                     // Adicionar botão "Tentar Novamente"
                     this.addRetryButton();
                     return;
                 }
                 
-                console.log('✅ Segunda tentativa - simulando sucesso');
+                console.log('✅ SEGUNDA TENTATIVA - SIMULANDO SUCESSO');
                 // Segunda tentativa - sucesso
                 if (modal) {
                     modal.style.display = 'none';
@@ -118,6 +119,8 @@ export class TrackingSystem {
                 // Processar pagamento com sucesso
                 this.processSuccessfulPayment();
             });
+        } else {
+            console.warn('⚠️ Botão de simulação não encontrado no DOM');
         }
         
         if (closeButton) {
@@ -156,7 +159,7 @@ export class TrackingSystem {
             });
         }
         
-        console.log('Eventos dos modais configurados');
+        console.log('✅ EVENTOS DOS MODAIS CONFIGURADOS');
     }
 
     setupFormSubmission() {
@@ -853,25 +856,35 @@ export class TrackingSystem {
         const toggleIcon = document.querySelector('.toggle-icon i');
         
         if (detailsHeader && detailsContent) {
+            console.log('🔧 Configurando accordion dos dados do pedido');
+            
             detailsHeader.addEventListener('click', () => {
+                console.log('📋 Accordion clicado');
                 const isExpanded = detailsContent.classList.contains('expanded');
+                console.log('📋 Estado atual - expandido:', isExpanded);
                 
                 if (isExpanded) {
                     detailsContent.classList.remove('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-down';
                     }
+                    console.log('📋 Accordion recolhido');
                 } else {
                     detailsContent.classList.add('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-up';
                     }
+                    console.log('📋 Accordion expandido');
                 }
             });
             
             console.log('✅ Accordion configurado corretamente');
         } else {
-            console.warn('⚠️ Elementos do accordion não encontrados');
+            console.error('❌ Elementos do accordion não encontrados:', {
+                detailsHeader: !!detailsHeader,
+                detailsContent: !!detailsContent,
+                toggleIcon: !!toggleIcon
+            });
         }
     }
 
