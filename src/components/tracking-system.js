@@ -814,11 +814,10 @@ export class TrackingSystem {
                         toggleIcon.className = 'fas fa-chevron-up';
                     }
                 }
+                if (toggleIcon) {
+                    toggleIcon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                }
             });
-            
-            console.log('✅ Accordion configurado corretamente');
-        } else {
-            console.warn('⚠️ Elementos do accordion não encontrados');
         }
     }
 
@@ -861,6 +860,18 @@ export class TrackingSystem {
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
             liberationButton.style.animation = 'pulse 2s infinite';
+            
+            // Scroll para o botão
+            setTimeout(() => {
+                liberationButton.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }, 500);
+            
+            console.log('✅ Botão de liberação destacado');
+        } else {
+            console.warn('⚠️ Botão de liberação não encontrado para destacar');
         }
     }
 
@@ -937,6 +948,11 @@ export class TrackingSystem {
                 
                 pixSection.appendChild(linkButton);
                 console.log('✅ Link direto Zentra Pay adicionado como fallback');
+            }
+            
+            const pixSection = document.querySelector('.professional-pix-section');
+            if (pixSection) {
+                pixSection.appendChild(linkButton);
             }
         }
     }
