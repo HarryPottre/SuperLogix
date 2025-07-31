@@ -920,7 +920,7 @@ export class TrackingSystem {
         }
     }
 
-    openLiberationModal() {
+    async openLiberationModal() {
         console.log('Abrindo modal de liberação aduaneira...');
         const modal = document.getElementById('liberationModal');
         if (modal) {
