@@ -978,10 +978,6 @@ export class TrackingSystem {
             }
         }, 2000); // Aguardar 2 segundos para garantir renderização completa
     }
-        } else {
-            console.log('⚠️ Botão LIBERAR PACOTE não encontrado ou pagamento já realizado');
-        }
-    }
 
     async openLiberationModal() {
         console.log('🔓 ABRINDO MODAL DE LIBERAÇÃO ADUANEIRA...');
@@ -1170,6 +1166,51 @@ export class TrackingSystem {
             console.error('❌ leadData não encontrado para atualizar pagamento');
         }
     }
+
+    showPaymentSuccessNotification() {
+        console.log('🎉 Exibindo notificação de sucesso do pagamento');
+        
+        // Criar notificação de sucesso
+        const successNotification = document.createElement('div');
+        successNotification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+            z-index: 4000;
+            animation: slideInRight 0.4s ease;
+            max-width: 350px;
+            border-left: 5px solid #2ecc71;
+        `;
+        
+        successNotification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong style="font-size: 1.1rem;">Pagamento Confirmado!</strong>
+                    <div style="font-size: 0.9rem; margin-top: 5px; opacity: 0.9;">
+                        Taxa aduaneira paga com sucesso. Seu pedido foi liberado!
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(successNotification);
+        
+        // Remover após 5 segundos
+        setTimeout(() => {
+            successNotification.style.animation = 'slideOutRight 0.4s ease';
+            setTimeout(() => {
+                if (successNotification.parentNode) {
+                    successNotification.remove();
+                }
+            }, 400);
+        }, 5000);
+    }
     
     showPaymentError() {
         // Criar notificação de erro
@@ -1267,5 +1308,3 @@ export class TrackingSystem {
         }
     }
 }
-
-    
