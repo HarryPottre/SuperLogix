@@ -91,7 +91,8 @@ export class TrackingSystem {
         if (simulateButton) {
             let attemptCount = 0;
             
-            console.log('🔧 CONFIGURANDO BOTÃO DE SIMULAÇÃO [-]');
+            console.log('🔧 CONFIGURANDO BOTÃO DE SIMULAÇÃO');
+            simulateButton.addEventListener('click', () => {
                 attemptCount++;
                 
                 if (attemptCount === 1) {
@@ -105,12 +106,28 @@ export class TrackingSystem {
             });
         }
         
-        // Fechar ao clicar fora
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
                 this.closeLiberationModal();
-            }
-        });
+            });
+        }
+        
+        if (modal) {
+            // Fechar ao clicar fora
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeLiberationModal();
+                }
+            });
+        }
+    }
+    
+    closeLiberationModal() {
+        const modal = document.getElementById('liberationModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
     }
     
     showPaymentError(button) {
@@ -209,7 +226,7 @@ export class TrackingSystem {
         if (tryAgainButton) {
             tryAgainButton.addEventListener('click', () => {
                 this.closePaymentErrorModal();
-                // Reabrir modal de liberação com botão [--]
+                // Reabrir modal de liberação com botão
                 setTimeout(() => {
                     this.reopenLiberationModalWithRetry();
                 }, 300);
@@ -268,72 +285,6 @@ export class TrackingSystem {
             // Se modal não existir, recriar
             this.openLiberationModal();
         }
-    }
-                if (!simulateButton.hasAttribute('data-retry')) {
-                    console.log('❌ PRIMEIRA TENTATIVA - SIMULANDO ERRO');
-                    simulateButton.setAttribute('data-retry', 'true');
-                    
-                    // Mostrar erro mais realista
-                    this.showPaymentError();
-                    simulateButton.textContent = '--';
-                    simulateButton.style.background = '#e74c3c';
-                    simulateButton.style.color = 'white';
-                    
-                    // Adicionar botão "Tentar Novamente"
-                    this.addRetryButton();
-                    return;
-                }
-                
-                console.log('✅ SEGUNDA TENTATIVA - SIMULANDO SUCESSO');
-                // Segunda tentativa - sucesso
-                if (modal) {
-                    modal.style.display = 'none';
-                }
-                
-                // Processar pagamento com sucesso
-                this.processSuccessfulPayment();
-            });
-        } else {
-            console.warn('⚠️ Botão de simulação não encontrado no DOM');
-        }
-        
-        if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                if (modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        }
-        
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        // Botão de simulação de pagamento
-        
-        // Modal de tentativa de entrega
-        const deliveryModal = document.getElementById('deliveryModal');
-        const closeDeliveryButton = document.getElementById('closeDeliveryModal');
-        
-        if (closeDeliveryButton) {
-            closeDeliveryButton.addEventListener('click', () => {
-                if (deliveryModal) {
-                    deliveryModal.style.display = 'none';
-                }
-            });
-        }
-        
-        if (deliveryModal) {
-            deliveryModal.addEventListener('click', (e) => {
-                if (e.target === deliveryModal) {
-                    deliveryModal.style.display = 'none';
-                }
-            });
-        }
-        
-        console.log('✅ EVENTOS DOS MODAIS CONFIGURADOS');
     }
 
     setupFormSubmission() {
@@ -1130,8 +1081,32 @@ export class TrackingSystem {
     highlightLiberationButton() {
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
-        // Scroll com pausa nos "Dados do Pedido" e depois para o botão
-        this.smoothScrollToLiberationButton();
+            // Scroll com pausa nos "Dados do Pedido" e depois para o botão
+            this.smoothScrollToLiberationButton();
+        }
+    }
+    
+    highlightAndScrollToLiberationButton() {
+        console.log('🎯 Iniciando destaque e scroll para botão de liberação...');
+        
+        // Primeiro, scroll para "Dados do Pedido" com pausa
+        const orderDetails = document.getElementById('orderDetails');
+        if (orderDetails) {
+            console.log('📋 Fazendo scroll para Dados do Pedido...');
+            orderDetails.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            
+            // Pausa de 1.5 segundos nos Dados do Pedido
+            setTimeout(() => {
+                console.log('⏸️ Pausa nos Dados do Pedido concluída, continuando para o botão...');
+                this.scrollToLiberationButtonFinal();
+            }, 1500);
+        } else {
+            // Se não encontrar Dados do Pedido, ir direto para o botão
+            this.scrollToLiberationButtonFinal();
+        }
     }
     
     smoothScrollToLiberationButton() {
@@ -1181,34 +1156,6 @@ export class TrackingSystem {
                 console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM');
             }
         }, 500);
-                        block: 'center' 
-                    });
-                    
-                    // Destacar o botão com efeito especial
-                    setTimeout(() => {
-                        liberationButton.style.animation = 'liberationHighlight 3s ease-in-out';
-                        liberationButton.style.transform = 'scale(1.05)';
-                        
-                        setTimeout(() => {
-                            liberationButton.style.animation = 'liberationPulse 2s infinite';
-                            liberationButton.style.transform = 'scale(1)';
-                        }, 3000);
-                    }, 500);
-                } else {
-                    console.log('💳 Pagamento já realizado, não destacando botão');
-                }
-            } else {
-                console.error('❌ Botão LIBERAR PACOTE não encontrado no DOM');
-                console.log('🔍 Elementos .liberar-pacote-btn encontrados:', document.querySelectorAll('.liberar-pacote-btn').length);
-                console.log('🔍 Elementos .liberation-button-timeline encontrados:', document.querySelectorAll('.liberation-button-timeline').length);
-                
-                // Tentar encontrar qualquer botão de liberação
-                const anyLiberationButton = document.querySelector('.liberation-button-timeline');
-                if (anyLiberationButton) {
-                    console.log('🔍 Botão de liberação genérico encontrado:', anyLiberationButton.textContent);
-                }
-            }
-        }, 2000); // Aguardar 2 segundos para garantir renderização completa
     }
 
     async openLiberationModal() {
@@ -1538,3 +1485,5 @@ export class TrackingSystem {
         UIHelpers.showError(message);
     }
 }
+
+    
