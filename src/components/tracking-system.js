@@ -1538,5 +1538,3 @@ export class TrackingSystem {
         UIHelpers.showError(message);
     }
 }
-
-    
