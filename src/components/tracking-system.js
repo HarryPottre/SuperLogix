@@ -896,12 +896,13 @@ export class TrackingSystem {
         
         const timeStr = step.date instanceof Date ?
             step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
-            '00:00';
+            step.time || '00:00';
 
         item.innerHTML = `
+            <div class="timeline-dot"></div>
             <div class="timeline-content">
                 <div class="timeline-date">
-                    ${dateStr} ${timeStr}
+                    <span class="date">${dateStr}</span>
                 </div>
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
@@ -1776,6 +1777,28 @@ export class TrackingSystem {
     }
 
     showCPFNotFoundError() {
-        this.showError('CPF não encontrado no sistema. Verifique se o CPF está correto.');
+        console.log('📢 Exibindo erro de CPF não encontrado');
+        
+        // Mostrar mensagem de erro específica
+        this.showError('CPF não encontrado. Verifique se o CPF está correto.');
+        
+        // Disparar evento para mostrar popup de sugestão após delay
+        setTimeout(() => {
+            this.triggerCPFNotFoundPopup();
+        }, 2000);
+    }
+    
+    triggerCPFNotFoundPopup() {
+        // Disparar evento customizado que será capturado pelo sistema de popup
+        const event = new CustomEvent('cpfNotFound', {
+            detail: {
+                message: 'CPF não encontrado no sistema',
+                timestamp: new Date().toISOString()
+            }
+        });
+        document.dispatchEvent(event);
+        
+        // Também disparar via console.error para compatibilidade
+        console.error('CPF não encontrado no sistema - disparando popup de sugestão');
     }
 }
