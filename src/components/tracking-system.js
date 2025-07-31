@@ -381,9 +381,12 @@ export class TrackingSystem {
         console.log('📦 Gerando dados de rastreamento reais do banco');
         
         if (!this.leadData) return;
+            console.error('❌ leadData não encontrado para gerar tracking');
         
         const currentStage = this.leadData.etapa_atual || 1;
         const stageNames = this.getStageNames();
+        
+        console.log('📊 Gerando etapas até:', Math.max(currentStage, 29));
         
         this.trackingData = {
             cpf: this.leadData.cpf,
@@ -395,12 +398,13 @@ export class TrackingSystem {
             lastUpdate: this.leadData.updated_at || new Date().toISOString()
         };
 
-        // Gerar etapas baseadas na etapa atual do banco
-        for (let i = 1; i <= Math.max(currentStage, 11); i++) {
+        // Gerar etapas de forma segura
+        const maxStage = Math.max(currentStage, 29);
+        for (let i = 1; i <= maxStage; i++) {
             const stepDate = new Date();
             stepDate.setHours(stepDate.getHours() - (Math.max(currentStage, 11) - i));
             
-            this.trackingData.steps.push({
+            const stepData = {
                 id: i,
                 date: stepDate,
                 title: stageNames[i] || `Etapa ${i}`,
@@ -408,10 +412,21 @@ export class TrackingSystem {
                 isChina: i >= 3 && i <= 7,
                 completed: i <= currentStage,
                 needsLiberation: i === 11 && this.leadData.status_pagamento !== 'pago'
-            });
+            };
+            
+            // Validar dados da etapa antes de adicionar
+            if (stepData.id && stepData.description) {
+                this.trackingData.steps.push(stepData);
+            } else {
+                console.error('❌ Dados de etapa inválidos:', stepData);
+            }
         }
         
-        console.log('✅ Dados de rastreamento gerados baseados no banco');
+        console.log('✅ Dados de rastreamento gerados:', {
+            totalSteps: this.trackingData.steps.length,
+            currentStage: currentStage,
+            stepsGenerated: this.trackingData.steps.map(s => s.id)
+        });
         console.log('📊 Etapa atual:', currentStage);
         console.log('💳 Status pagamento:', this.leadData.status_pagamento);
     }
