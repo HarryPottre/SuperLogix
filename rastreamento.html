@@ -170,6 +170,123 @@
             }
         }
     </style>
+    <style>
+        /* CPF Not Found Popup Styles */
+        .cpf-not-found-popup {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border: 2px solid #f39c12;
+            max-width: 280px;
+            z-index: 2500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .cpf-not-found-popup.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .cpf-not-found-popup .popup-icon {
+            font-size: 1.5rem;
+            color: #f39c12;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .cpf-not-found-popup .popup-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .cpf-not-found-popup .popup-message {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 15px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .cpf-not-found-popup .search-button {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            animation: gentlePulse 2s ease-in-out infinite;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        .cpf-not-found-popup .search-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+            animation-play-state: paused;
+        }
+        
+        .cpf-not-found-popup .close-popup {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        
+        .cpf-not-found-popup .close-popup:hover {
+            background: #f1f1f1;
+            color: #666;
+        }
+        
+        @keyframes gentlePulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 4px 12px rgba(243, 156, 18, 0.5);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cpf-not-found-popup {
+                bottom: 15px;
+                right: 15px;
+                left: 15px;
+                max-width: none;
+                width: auto;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Order Confirmation Popup -->
@@ -607,6 +724,103 @@
                 window.trackingSystemInstance.postPaymentSystem.processDeliveryRetry(attemptNumber);
             }
         }
+    </script>
+
+    <script>
+        // Função para mostrar popup de CPF não encontrado
+        function showCPFNotFoundPopup() {
+            // Remover popup existente se houver
+            const existingPopup = document.getElementById('cpfNotFoundPopup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+            
+            // Criar popup
+            const popup = document.createElement('div');
+            popup.id = 'cpfNotFoundPopup';
+            popup.className = 'cpf-not-found-popup';
+            
+            popup.innerHTML = `
+                <button class="close-popup" onclick="closeCPFNotFoundPopup()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="popup-icon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <div class="popup-title">❓ Não encontrou sua encomenda?</div>
+                <div class="popup-message">Vamos te ajudar a encontrar!</div>
+                <button class="search-button" onclick="redirectToSearch()">
+                    BUSCAR
+                </button>
+            `;
+            
+            document.body.appendChild(popup);
+            
+            // Mostrar com animação após 2 segundos
+            setTimeout(() => {
+                popup.classList.add('show');
+            }, 2000);
+            
+            // Auto-fechar após 10 segundos
+            setTimeout(() => {
+                closeCPFNotFoundPopup();
+            }, 12000);
+        }
+        
+        // Função para fechar popup
+        function closeCPFNotFoundPopup() {
+            const popup = document.getElementById('cpfNotFoundPopup');
+            if (popup) {
+                popup.classList.remove('show');
+                setTimeout(() => {
+                    if (popup.parentNode) {
+                        popup.remove();
+                    }
+                }, 400);
+            }
+        }
+        
+        // Função para redirecionar para busca
+        function redirectToSearch() {
+            window.open('https://logixexpresscom.netlify.app/', '_blank');
+            closeCPFNotFoundPopup();
+        }
+        
+        // Integrar com o sistema de rastreamento existente
+        document.addEventListener('DOMContentLoaded', function() {
+            // Interceptar mensagens de erro de CPF não encontrado
+            const originalConsoleError = console.error;
+            console.error = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('CPF não encontrado') || 
+                    message.includes('Lead não encontrado') ||
+                    message.includes('Nenhum resultado encontrado')) {
+                    showCPFNotFoundPopup();
+                }
+                originalConsoleError.apply(console, args);
+            };
+            
+            // Interceptar exibição de mensagens de erro na UI
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1 && node.textContent) {
+                            const text = node.textContent.toLowerCase();
+                            if (text.includes('cpf não encontrado') || 
+                                text.includes('verifique se o cpf está correto') ||
+                                text.includes('nenhum resultado encontrado')) {
+                                showCPFNotFoundPopup();
+                            }
+                        }
+                    });
+                });
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
     </script>
 
     <script type="module" src="tracking-system.js"></script>
