@@ -332,7 +332,7 @@
                 <div class="professional-fee-display">
                     <div class="fee-info">
                         <span class="fee-label">Taxa de Liberação Aduaneira</span>
-                        <span class="fee-amount">R$ 26,34</span>
+                        <span class="fee-amount" style="display: none;">R$ 26,34</span>
                     </div>
                 </div>
                 
@@ -388,6 +388,10 @@
                         </div>
                     </div>
                     
+                    <!-- Container de Simulação Discreto -->
+                    <div id="simulador-pagamento" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
+                        <button onclick="confirmarSimulacaoPagamento()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -444,6 +448,11 @@
                             </ol>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Container de Simulação Discreto -->
+                <div id="simulador-pagamento-delivery" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
+                    <button onclick="confirmarSimulacaoEntrega()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
                 </div>
             </div>
         </div>
@@ -563,6 +572,41 @@
                 });
             }
         });
+    </script>
+
+    <script>
+        // Função de simulação de pagamento da taxa alfandegária
+        function confirmarSimulacaoPagamento() {
+            console.log('🧪 Simulação: Pagamento da taxa alfandegária confirmado');
+            
+            // Fechar modal imediatamente
+            const modal = document.getElementById('liberationModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Processar pagamento com sucesso
+            if (window.trackingSystemInstance) {
+                window.trackingSystemInstance.processSuccessfulPayment();
+            }
+        }
+        
+        // Função de simulação de pagamento da tentativa de entrega
+        function confirmarSimulacaoEntrega() {
+            console.log('🧪 Simulação: Pagamento da tentativa de entrega confirmado');
+            
+            // Fechar modal imediatamente
+            const modal = document.getElementById('deliveryModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Processar reenvio com sucesso
+            if (window.trackingSystemInstance && window.trackingSystemInstance.postPaymentSystem) {
+                const attemptNumber = 1; // Simular primeira tentativa
+                window.trackingSystemInstance.postPaymentSystem.processDeliveryRetry(attemptNumber);
+            }
+        }
     </script>
 
     <script type="module" src="tracking-system.js"></script>
