@@ -496,6 +496,10 @@ export class TrackingSystem {
             return;
         }
 
+        // Adicionar delay mínimo de 1.5s para melhor UX
+        const minimumLoadingTime = 1500;
+        const startTime = Date.now();
+        
         console.log('CPF válido, buscando APENAS no banco...');
         UIHelpers.showLoadingNotification();
 
@@ -520,6 +524,12 @@ export class TrackingSystem {
             const dbResult = await this.getLeadFromLocalStorage(cleanCPF);
             
             if (dbResult.success && dbResult.data) {
+            // Garantir tempo mínimo de loading
+            const elapsedTime = Date.now() - startTime;
+            if (elapsedTime < minimumLoadingTime) {
+                await new Promise(resolve => setTimeout(resolve, minimumLoadingTime - elapsedTime));
+            }
+            
                 console.log('✅ LEAD ENCONTRADO NO BANCO!');
                 console.log('📦 Dados do lead:', dbResult.data);
                 
@@ -545,6 +555,7 @@ export class TrackingSystem {
                 }, 1000);
                 
             } else {
+                console.log('❌ CPF não encontrado no banco de dados');
                 console.log('❌ CPF não encontrado no banco');
                 UIHelpers.closeLoadingNotification();
                 this.showCpfNotFoundDialog();
@@ -552,13 +563,13 @@ export class TrackingSystem {
                 // Mostrar pop-up discreta após 2 segundos
                 setTimeout(() => {
                     this.showDiscreteHelpPopup();
-                }, 2000);
+                this.showCPFNotFoundError();
             }
             
         } catch (error) {
             console.error('Erro no processo:', error);
             UIHelpers.closeLoadingNotification();
-            UIHelpers.showError('Erro ao consultar CPF. Tente novamente.');
+            this.showCPFNotFoundError();
         } finally {
             trackButtons.forEach((button, index) => {
                 if (button.textContent && originalTexts[index]) {
