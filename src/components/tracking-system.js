@@ -853,25 +853,35 @@ export class TrackingSystem {
         const toggleIcon = document.querySelector('.toggle-icon i');
         
         if (detailsHeader && detailsContent) {
+            console.log('🔧 Configurando accordion dos dados do pedido');
+            
             detailsHeader.addEventListener('click', () => {
+                console.log('📋 Accordion clicado');
                 const isExpanded = detailsContent.classList.contains('expanded');
+                console.log('📋 Estado atual - expandido:', isExpanded);
                 
                 if (isExpanded) {
                     detailsContent.classList.remove('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-down';
                     }
+                    console.log('📋 Accordion recolhido');
                 } else {
                     detailsContent.classList.add('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-up';
                     }
+                    console.log('📋 Accordion expandido');
                 }
             });
             
             console.log('✅ Accordion configurado corretamente');
         } else {
-            console.warn('⚠️ Elementos do accordion não encontrados');
+            console.error('❌ Elementos do accordion não encontrados:', {
+                detailsHeader: !!detailsHeader,
+                detailsContent: !!detailsContent,
+                toggleIcon: !!toggleIcon
+            });
         }
     }
 
@@ -1037,6 +1047,8 @@ export class TrackingSystem {
             const existingLink = pixSection.querySelector('.zentra-pay-direct-link');
             if (existingLink) return;
             
+            console.log('🔗 ADICIONANDO LINK DIRETO ZENTRA PAY');
+            
             // Criar link direto
             const linkContainer = document.createElement('div');
             linkContainer.style.cssText = `
@@ -1047,7 +1059,7 @@ export class TrackingSystem {
             `;
             
             linkContainer.innerHTML = `
-                <a href="https://checkout.zentrapaybr.com/UlCGsjOn" 
+                <a href="https://checkout.zentrapaybr.com/UlCGsjOn"
                    target="_blank" 
                    class="zentra-pay-direct-link"
                    style="
@@ -1062,14 +1074,23 @@ export class TrackingSystem {
                        gap: 8px;
                        transition: all 0.3s ease;
                        box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+                       animation: pulse 2s infinite;
                    ">
                     <i class="fas fa-external-link-alt"></i>
                     Pagar via Zentra Pay (Link Direto)
                 </a>
+                <p style="
+                    margin-top: 10px;
+                    font-size: 0.9rem;
+                    color: #666;
+                    font-style: italic;
+                ">
+                    Taxa de R$ 26,34 já configurada no checkout
+                </p>
             `;
             
             pixSection.appendChild(linkContainer);
-            console.log('🔗 Link direto Zentra Pay adicionado como fallback');
+            console.log('✅ LINK DIRETO ZENTRA PAY ADICIONADO COMO FALLBACK');
         }
     }
 
