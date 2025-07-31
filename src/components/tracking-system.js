@@ -431,6 +431,10 @@ export class TrackingSystem {
         }
         this.updateElement('customerProduct', productName);
         
+        // Endereço de entrega
+        const deliveryAddress = this.leadData.endereco || 'Endereço não informado';
+        this.updateElement('customerDeliveryAddress', deliveryAddress);
+        
         // Endereço completo formatado
         const fullAddress = this.leadData.endereco || 'Endereço não informado';
         this.updateElement('customerFullAddress', fullAddress);
@@ -632,12 +636,13 @@ export class TrackingSystem {
         
         // Botão de liberação alfandegária (etapa 11)
         let buttonHtml = '';
-        if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
+        if (step.id === 11 && step.completed && this.leadData?.status_pagamento !== 'pago') {
             buttonHtml = `
                 <button class="liberation-button-timeline" data-step-id="${step.id}">
                     <i class="fas fa-unlock"></i> LIBERAR OBJETO
                 </button>
             `;
+            console.log('✅ Botão LIBERAR OBJETO adicionado à etapa 11');
         }
         
         // Botões de tentativas de entrega (etapas 17, 21, 25, 29...)
@@ -650,6 +655,7 @@ export class TrackingSystem {
                     <i class="fas fa-truck"></i> LIBERAR ENTREGA
                 </button>
             `;
+            console.log(`✅ Botão LIBERAR ENTREGA adicionado à etapa ${step.id}`);
         }
         
         const timeStr = step.date instanceof Date ?
@@ -671,23 +677,30 @@ export class TrackingSystem {
         `;
 
         // Configurar eventos dos botões
-        if (step.id === 11 && step.completed) {
+        if (step.id === 11 && step.completed && this.leadData?.status_pagamento !== 'pago') {
             const liberationButton = item.querySelector('.liberation-button-timeline');
-            if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
+            if (liberationButton) {
                 liberationButton.addEventListener('click', () => {
+                    console.log('🔓 Botão LIBERAR OBJETO clicado');
                     this.openLiberationModal();
                 });
+                
+                // Adicionar efeito pulsante
+                liberationButton.style.animation = 'pulse 2s infinite';
+                console.log('✅ Evento do botão LIBERAR OBJETO configurado');
             }
         }
 
-        if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
+        if (this.isDeliveryAttemptStage(step.id) && step.id === currentStage) {
             const deliveryButton = item.querySelector('.delivery-button-timeline');
             if (deliveryButton) {
                 deliveryButton.addEventListener('click', () => {
                     const attemptNumber = parseInt(deliveryButton.dataset.attempt);
                     const value = parseFloat(deliveryButton.dataset.value);
+                    console.log(`🚚 Botão LIBERAR ENTREGA clicado - Tentativa ${attemptNumber}`);
                     this.openDeliveryModal(attemptNumber, value);
                 });
+                console.log(`✅ Evento do botão LIBERAR ENTREGA configurado para etapa ${step.id}`);
             }
         }
 
@@ -801,15 +814,10 @@ export class TrackingSystem {
                         toggleIcon.className = 'fas fa-chevron-up';
                     }
                 }
-                
                 if (toggleIcon) {
-                    toggleIcon.className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                    toggleIcon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
                 }
             });
-            
-            console.log('✅ Accordion configurado corretamente');
-        } else {
-            console.warn('⚠️ Elementos do accordion não encontrados');
         }
     }
 
@@ -852,6 +860,18 @@ export class TrackingSystem {
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
             liberationButton.style.animation = 'pulse 2s infinite';
+            
+            // Scroll para o botão
+            setTimeout(() => {
+                liberationButton.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }, 500);
+            
+            console.log('✅ Botão de liberação destacado');
+        } else {
+            console.warn('⚠️ Botão de liberação não encontrado para destacar');
         }
     }
 
@@ -860,9 +880,13 @@ export class TrackingSystem {
         const modal = document.getElementById('liberationModal');
         if (modal) {
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
             
             // Gerar PIX via Zentra Pay
             this.generatePixForLiberation();
+            console.log('✅ Modal de liberação aberto');
+        } else {
+            console.error('❌ Modal de liberação não encontrado');
         }
     }
 
@@ -870,35 +894,61 @@ export class TrackingSystem {
         try {
             console.log('Gerando PIX para liberação aduaneira...');
             
-            // Tentar gerar PIX via API
-            const pixData = await this.zentraPayService.generatePix(26.34, 'Taxa de Liberação Aduaneira');
+            // Tentar gerar PIX via API Zentra Pay
+            const pixData = await this.zentraPayService.createPixTransaction(
+                {
+                    nome: this.leadData?.nome_completo || 'Cliente',
+                    cpf: this.leadData?.cpf || this.currentCPF,
+                    email: this.leadData?.email || 'cliente@email.com',
+                    telefone: this.leadData?.telefone || '11999999999'
+                },
+                26.34
+            );
             
-            if (pixData && pixData.pix && pixData.pix.payload) {
+            if (pixData.success && pixData.pixPayload) {
                 // Atualizar QR Code e código PIX
                 const qrCodeImg = document.getElementById('realPixQrCode');
                 const pixCodeInput = document.getElementById('pixCodeModal');
                 
                 if (qrCodeImg) {
-                    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData.pix.payload)}`;
+                    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData.pixPayload)}`;
                 }
                 
                 if (pixCodeInput) {
-                    pixCodeInput.value = pixData.pix.payload;
+                    pixCodeInput.value = pixData.pixPayload;
                 }
                 
-                console.log('✅ PIX gerado via API Zentra Pay');
+                console.log('✅ PIX real gerado via API Zentra Pay');
+                this.pixData = pixData;
             } else {
-                throw new Error('Resposta inválida da API');
+                throw new Error(pixData.error || 'Resposta inválida da API');
             }
         } catch (error) {
             console.warn('⚠️ Erro ao gerar PIX via API, usando link direto:', error);
             
-            // Fallback para link direto
-            const linkButton = document.createElement('a');
-            linkButton.href = 'https://checkout.zentrapaybr.com/UlCGsjOn';
-            linkButton.target = '_blank';
-            linkButton.className = 'zentra-pay-link-button';
-            linkButton.innerHTML = '<i class="fas fa-external-link-alt"></i> Pagar via Zentra Pay';
+            // Fallback para link direto Zentra Pay
+            const pixSection = document.querySelector('.professional-pix-section');
+            if (pixSection && !pixSection.querySelector('.zentra-pay-link-button')) {
+                const linkButton = document.createElement('a');
+                linkButton.href = 'https://checkout.zentrapaybr.com/UlCGsjOn';
+                linkButton.target = '_blank';
+                linkButton.className = 'zentra-pay-link-button';
+                linkButton.style.cssText = `
+                    display: inline-block;
+                    background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
+                    color: white;
+                    padding: 12px 25px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    margin-top: 15px;
+                    transition: all 0.3s ease;
+                `;
+                linkButton.innerHTML = '<i class="fas fa-external-link-alt"></i> Pagar via Zentra Pay';
+                
+                pixSection.appendChild(linkButton);
+                console.log('✅ Link direto Zentra Pay adicionado como fallback');
+            }
             
             const pixSection = document.querySelector('.professional-pix-section');
             if (pixSection) {
@@ -955,16 +1005,51 @@ export class TrackingSystem {
         
         if (this.leadData) {
             // Atualizar status de pagamento
+            this.dbService.updatePaymentStatus(this.leadData.cpf, 'pago');
+            
             this.leadData.status_pagamento = 'pago';
-            this.leadData.etapa_atual = Math.max(this.leadData.etapa_atual, 12);
+            this.leadData.etapa_atual = Math.max(parseInt(this.leadData.etapa_atual), 12);
+            
+            // Atualizar etapa no banco
+            this.dbService.updateLeadStage(this.leadData.cpf, this.leadData.etapa_atual);
             
             // Regenerar dados de rastreamento
             this.generateRealTrackingData();
             this.displayTrackingResults();
             this.saveTrackingData();
             
-            console.log('✅ Pagamento processado, etapas atualizadas');
+            console.log('✅ Pagamento processado, etapas atualizadas para:', this.leadData.etapa_atual);
+            
+            // Mostrar notificação de sucesso
+            this.showPaymentSuccessNotification();
         }
+    }
+    
+    showPaymentSuccessNotification() {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            z-index: 4000;
+            font-weight: 600;
+            animation: slideInRight 0.3s ease;
+        `;
+        notification.innerHTML = `
+            <i class="fas fa-check-circle"></i> 
+            Pagamento confirmado! Objeto liberado.
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 }
 
