@@ -871,7 +871,7 @@ export class TrackingSystem {
                 </div>
                 <div class="timeline-text">
                     <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
-                    ${buttonHtml}
+                    <p>Pedido foi liberado na alfândega de importação</p>
                 </div>
             </div>
         `;
@@ -1370,6 +1370,12 @@ export class TrackingSystem {
             
             // Mostrar popup de erro após pequeno delay
             setTimeout(() => {
+            
+            // Ocultar botão "LIBERAR PACOTE" após 2 segundos da nova etapa
+            setTimeout(() => {
+                this.hideLiberationButton();
+                console.log('🔒 Botão LIBERAR PACOTE ocultado após etapa de liberação');
+            }, 2000);
                 this.showPaymentErrorPopup();
             }, 500);
             
