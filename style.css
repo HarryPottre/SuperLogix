@@ -1407,6 +1407,52 @@ body {
     font-size: 0.9rem;
 }
 
+/* Animação de pulsação sutil para botão LIBERAR PACOTE */
+.liberation-button-timeline {
+    animation: subtlePulse 2.5s ease-in-out infinite !important;
+}
+
+.liberation-button-timeline:hover {
+    animation-play-state: paused !important;
+}
+
+@keyframes subtlePulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+    }
+    50% {
+        transform: scale(1.03);
+        box-shadow: 0 6px 20px rgba(30, 74, 107, 0.6);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+    }
+}
+
+/* Destaque temporário do botão */
+.highlighted-button {
+    background: linear-gradient(45deg, #1e4a6b, #2c5f8a) !important;
+    box-shadow: 0 0 20px rgba(30, 74, 107, 0.8) !important;
+    animation: highlightPulse 1s ease-in-out infinite !important;
+}
+
+@keyframes highlightPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 20px rgba(30, 74, 107, 0.8);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 30px rgba(30, 74, 107, 1);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 20px rgba(30, 74, 107, 0.8);
+    }
+}
+
 /* Botão Tentativa de Entrega na Timeline */
 .delivery-button-timeline {
     background: rgba(30, 74, 107, 0.9);
