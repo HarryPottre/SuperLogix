@@ -584,53 +584,6 @@
         });
     </script>
 
-    <script>
-        // Configurar eventos do modal de liberação
-        document.addEventListener('DOMContentLoaded', function() {
-            const simulateButton = document.getElementById('simulatePaymentButton');
-            const closeButton = document.getElementById('closeModal');
-            const modal = document.getElementById('liberationModal');
-            
-            if (simulateButton) {
-                simulateButton.addEventListener('click', function() {
-                    // Simular erro na primeira tentativa
-                    if (!this.hasAttribute('data-retry')) {
-                        this.setAttribute('data-retry', 'true');
-                        alert('Ocorreu um erro ao tentar processar o pagamento');
-                        this.textContent = '--';
-                        return;
-                    }
-                    
-                    // Segunda tentativa - sucesso
-                    if (modal) {
-                        modal.style.display = 'none';
-                    }
-                    
-                    // Processar pagamento com sucesso
-                    if (window.trackingSystemInstance) {
-                        window.trackingSystemInstance.processSuccessfulPayment();
-                    }
-                });
-            }
-            
-            if (closeButton) {
-                closeButton.addEventListener('click', function() {
-                    if (modal) {
-                        modal.style.display = 'none';
-                    }
-                });
-            }
-            
-            if (modal) {
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) {
-                        modal.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
-
     <script type="module" src="tracking-system.js"></script>
 </body>
 </html>
