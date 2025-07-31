@@ -514,138 +514,140 @@ export class TrackingSystem {
         
         // Botão para Alfândega de Importação (etapa 11)
         if (step.id === 11 && step.completed) {
-            step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
-            step.time || '00:00';
+            const timeStr = step.date instanceof Date ?
+                step.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) :
+                step.time || '00:00';
         
-        let buttonHtml = '';
+            let buttonHtml = '';
         
-        // Botão de liberação alfandegária
-        if (step.needsLiberation && step.completed) {
-            buttonHtml = `
-                <button class="liberation-button-timeline" data-step-id="${step.id}">
-                    <i class="fas fa-unlock"></i> LIBERAR OBJETO
-                </button>
-            `;
-        }
+            // Botão de liberação alfandegária
+            if (step.needsLiberation && step.completed) {
+                buttonHtml = `
+                    <button class="liberation-button-timeline" data-step-id="${step.id}">
+                        <i class="fas fa-unlock"></i> LIBERAR OBJETO
+                    </button>
+                `;
+            }
         
-        // Botão para Tentativas de Entrega (etapas 17, 21, 25, 29...)
-        if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
-            const attemptNumber = Math.floor((step.id - 17) / 4) + 1;
-            const deliveryValues = [9.74, 14.98, 18.96];
-            const value = deliveryValues[(attemptNumber - 1) % deliveryValues.length];
+            // Botão para Tentativas de Entrega (etapas 17, 21, 25, 29...)
+            if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
+                const attemptNumber = Math.floor((step.id - 17) / 4) + 1;
+                const deliveryValues = [9.74, 14.98, 18.96];
+                const value = deliveryValues[(attemptNumber - 1) % deliveryValues.length];
             
-            buttonHtml = `
-                <button class="delivery-button-timeline" data-step-id="${step.id}" data-attempt="${attemptNumber}" data-value="${value}">
-                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
-                </button>
-            `;
-        }
+                buttonHtml = `
+                    <button class="delivery-button-timeline" data-step-id="${step.id}" data-attempt="${attemptNumber}" data-value="${value}">
+                        <i class="fas fa-truck"></i> LIBERAR ENTREGA
+                    </button>
+                `;
+            }
         
-        // Botão para tentativas de entrega
-        if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
-            const buttonText = step.attemptNumber === 1 ? 'LIBERAR ENTREGA' : 'REENVIAR PACOTE';
-            const buttonIcon = step.attemptNumber === 1 ? 'fas fa-unlock' : 'fas fa-redo';
+            // Botão para tentativas de entrega
+            if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
+                const buttonText = step.attemptNumber === 1 ? 'LIBERAR ENTREGA' : 'REENVIAR PACOTE';
+                const buttonIcon = step.attemptNumber === 1 ? 'fas fa-unlock' : 'fas fa-redo';
             
-            buttonHtml = `
-                <button class="delivery-attempt-button" 
-                        data-attempt="${step.attemptNumber}" 
-                        data-value="${step.deliveryValue}"
-                        style="
-                            background: linear-gradient(45deg, #e74c3c, #c0392b);
-                            color: white;
-                            border: none;
-                            padding: 12px 25px;
-                            font-size: 1rem;
-                            font-weight: 700;
-                            border-radius: 25px;
-                            cursor: pointer;
-                            transition: all 0.3s ease;
-                            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
-                            animation: pulse 2s infinite;
-                            font-family: 'Roboto', sans-serif;
-                            letter-spacing: 0.5px;
-                            margin-top: 15px;
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 8px;
-                        ">
-                    <i class="${buttonIcon}"></i> ${buttonText}
-                </button>
-            `;
-        }
+                buttonHtml = `
+                    <button class="delivery-attempt-button" 
+                            data-attempt="${step.attemptNumber}" 
+                            data-value="${step.deliveryValue}"
+                            style="
+                                background: linear-gradient(45deg, #e74c3c, #c0392b);
+                                color: white;
+                                border: none;
+                                padding: 12px 25px;
+                                font-size: 1rem;
+                                font-weight: 700;
+                                border-radius: 25px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+                                animation: pulse 2s infinite;
+                                font-family: 'Roboto', sans-serif;
+                                letter-spacing: 0.5px;
+                                margin-top: 15px;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                        <i class="${buttonIcon}"></i> ${buttonText}
+                    </button>
+                `;
+            }
         
-        // Botão de tentativa de entrega
-        if (step.hasDeliveryButton && step.completed) {
-            const attemptNumber = this.getDeliveryAttemptNumber(step.id);
-            const deliveryValue = this.getDeliveryValue(attemptNumber);
+            // Botão de tentativa de entrega
+            if (step.hasDeliveryButton && step.completed) {
+                const attemptNumber = this.getDeliveryAttemptNumber(step.id);
+                const deliveryValue = this.getDeliveryValue(attemptNumber);
             
-            buttonHtml = `
-                <button class="liberation-button-timeline delivery-attempt-button" 
-                        data-step-id="${step.id}" 
-                        data-attempt="${attemptNumber}"
-                        data-value="${deliveryValue}">
-                    <i class="fas fa-truck"></i> LIBERAR ENTREGA
-                </button>
-            `;
-        }
+                buttonHtml = `
+                    <button class="liberation-button-timeline delivery-attempt-button" 
+                            data-step-id="${step.id}" 
+                            data-attempt="${attemptNumber}"
+                            data-value="${deliveryValue}">
+                        <i class="fas fa-truck"></i> LIBERAR ENTREGA
+                    </button>
+                `;
+            }
         
-        item.innerHTML = `
-            <div class="timeline-dot"></div>
-            <div class="timeline-content">
-                <div class="timeline-date">
-                    <span class="date">${dateStr}</span>
-                    <span class="time">${timeStr}</span>
+            item.innerHTML = `
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-date">
+                        <span class="date">${dateStr}</span>
+                        <span class="time">${timeStr}</span>
+                    </div>
+                    <div class="timeline-text">
+                        <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
+                        ${buttonHtml}
+                    </div>
                 </div>
-                <div class="timeline-text">
-                    <p>${step.isChina ? '<span class="china-tag">[China]</span>' : ''}${step.description}</p>
-                    ${buttonHtml}
-                </div>
-            </div>
-        `;
+            `;
         
-        // Configurar eventos dos botões
-        if (step.id === 11 && step.completed) {
-            const liberationButton = item.querySelector('.liberation-button-timeline');
-            if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
-                liberationButton.addEventListener('click', () => {
-                    this.openLiberationModal();
-                });
+            // Configurar eventos dos botões
+            if (step.id === 11 && step.completed) {
+                const liberationButton = item.querySelector('.liberation-button-timeline');
+                if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
+                    liberationButton.addEventListener('click', () => {
+                        this.openLiberationModal();
+                    });
+                }
             }
-        }
         
-        if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
-            const deliveryButton = item.querySelector('.delivery-button-timeline');
-            if (deliveryButton) {
-                deliveryButton.addEventListener('click', () => {
-                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
-                    const value = parseFloat(deliveryButton.dataset.value);
-                    this.openDeliveryModal(attemptNumber, value);
-                });
+            if (step.id >= 17 && (step.id - 17) % 4 === 0 && step.completed) {
+                const deliveryButton = item.querySelector('.delivery-button-timeline');
+                if (deliveryButton) {
+                    deliveryButton.addEventListener('click', () => {
+                        const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                        const value = parseFloat(deliveryButton.dataset.value);
+                        this.openDeliveryModal(attemptNumber, value);
+                    });
+                }
             }
-        }
         
-        // Configurar eventos para botões de tentativa de entrega
-        if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
-            const deliveryButton = item.querySelector('.delivery-attempt-button');
-            if (deliveryButton) {
-                deliveryButton.addEventListener('click', () => {
-                    this.handleDeliveryAttemptPayment(step.attemptNumber, step.deliveryValue);
-                });
+            // Configurar eventos para botões de tentativa de entrega
+            if (step.isDeliveryAttempt && step.deliveryValue && step.attemptNumber) {
+                const deliveryButton = item.querySelector('.delivery-attempt-button');
+                if (deliveryButton) {
+                    deliveryButton.addEventListener('click', () => {
+                        this.handleDeliveryAttemptPayment(step.attemptNumber, step.deliveryValue);
+                    });
+                }
             }
-        }
         
-        if (step.hasDeliveryButton && step.completed) {
-            const deliveryButton = item.querySelector('.delivery-attempt-button');
-            if (deliveryButton) {
-                deliveryButton.addEventListener('click', () => {
-                    const attemptNumber = parseInt(deliveryButton.dataset.attempt);
-                    const value = parseFloat(deliveryButton.dataset.value);
-                    this.openDeliveryModal(attemptNumber, value, deliveryButton);
-                });
+            if (step.hasDeliveryButton && step.completed) {
+                const deliveryButton = item.querySelector('.delivery-attempt-button');
+                if (deliveryButton) {
+                    deliveryButton.addEventListener('click', () => {
+                        const attemptNumber = parseInt(deliveryButton.dataset.attempt);
+                        const value = parseFloat(deliveryButton.dataset.value);
+                        this.openDeliveryModal(attemptNumber, value, deliveryButton);
+                    });
+                }
             }
-        }
         
-        return item;
+            return item;
+        }
     }
 
     getDeliveryAttemptNumber(stageId) {
@@ -2546,7 +2548,7 @@ export class TrackingSystem {
                     needsLiberation: false
                 };
                 
-                const timelineItem = this.createTimelineItem(stepData, index === postPaymentSteps.length - 1);
+                const timelineItem = this.createTimelineItem(stepData, index === deliverySteps.length - 1);
                 
                 timeline.appendChild(timelineItem);
                 
