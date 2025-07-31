@@ -1112,7 +1112,36 @@ export class TrackingSystem {
         console.log(`🚚 Abrindo modal de ${attemptNumber}ª tentativa de entrega - R$ ${value.toFixed(2)}`);
 
         // Mostrar loading
-        UIHelpers.showLoadingNotification();
+            let buttonHtml = '';
+            
+            // Botão LIBERAR OBJETO - Etapa 11 (Alfândega)
+            if (stepData.id === 11 && isCompleted) {
+                const paymentStatus = this.leadData ? this.leadData.status_pagamento : 'pendente';
+                if (paymentStatus !== 'pago') {
+                    buttonHtml = `
+                        <button class="liberation-button-timeline" data-step-id="${stepData.id}" data-action="liberar-alfandega">
+                            <i class="fas fa-unlock"></i> LIBERAR OBJETO
+                        </button>
+                    `;
+                }
+            }
+            
+            // Botões LIBERAR ENTREGA - Tentativas (etapas 17, 21, 25, 29...)
+            if ([17, 21, 25, 29].includes(stepData.id) && isCompleted) {
+                const attemptNumber = Math.floor((stepData.id - 17) / 4) + 1;
+                const deliveryValues = [7.74, 12.38, 16.46];
+                const value = deliveryValues[(attemptNumber - 1) % deliveryValues.length];
+                
+                buttonHtml = `
+                    <button class="liberation-button-timeline delivery-retry-btn" 
+                            data-step-id="${stepData.id}" 
+                            data-action="liberar-entrega"
+                            data-attempt="${attemptNumber}"
+                            data-value="${value}">
+                        <i class="fas fa-truck"></i> LIBERAR ENTREGA - ${attemptNumber}ª Tentativa
+                    </button>
+                `;
+            }
 
         try {
             // Gerar PIX via Zentra Pay
