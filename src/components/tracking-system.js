@@ -853,35 +853,25 @@ export class TrackingSystem {
         const toggleIcon = document.querySelector('.toggle-icon i');
         
         if (detailsHeader && detailsContent) {
-            console.log('🔧 Configurando accordion dos dados do pedido');
-            
             detailsHeader.addEventListener('click', () => {
-                console.log('📋 Accordion clicado');
                 const isExpanded = detailsContent.classList.contains('expanded');
-                console.log('📋 Estado atual - expandido:', isExpanded);
                 
                 if (isExpanded) {
                     detailsContent.classList.remove('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-down';
                     }
-                    console.log('📋 Accordion recolhido');
                 } else {
                     detailsContent.classList.add('expanded');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-up';
                     }
-                    console.log('📋 Accordion expandido');
                 }
             });
             
             console.log('✅ Accordion configurado corretamente');
         } else {
-            console.error('❌ Elementos do accordion não encontrados:', {
-                detailsHeader: !!detailsHeader,
-                detailsContent: !!detailsContent,
-                toggleIcon: !!toggleIcon
-            });
+            console.warn('⚠️ Elementos do accordion não encontrados');
         }
     }
 
