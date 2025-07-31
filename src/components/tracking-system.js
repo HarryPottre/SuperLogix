@@ -89,16 +89,27 @@ export class TrackingSystem {
         const modal = document.getElementById('liberationModal');
         
         if (simulateButton) {
+            console.log('🔧 Configurando botão de simulação [-]');
             simulateButton.addEventListener('click', (e) => {
                 e.preventDefault();
+                console.log('🎭 Botão de simulação clicado:', simulateButton.textContent);
+                
                 // Simular erro na primeira tentativa
                 if (!simulateButton.hasAttribute('data-retry')) {
+                    console.log('❌ Primeira tentativa - simulando erro');
                     simulateButton.setAttribute('data-retry', 'true');
-                    alert('Ocorreu um erro ao tentar processar o pagamento');
+                    
+                    // Mostrar erro mais realista
+                    this.showPaymentError();
                     simulateButton.textContent = '--';
+                    simulateButton.style.background = '#e74c3c';
+                    
+                    // Adicionar botão "Tentar Novamente"
+                    this.addRetryButton();
                     return;
                 }
                 
+                console.log('✅ Segunda tentativa - simulando sucesso');
                 // Segunda tentativa - sucesso
                 if (modal) {
                     modal.style.display = 'none';
@@ -377,7 +388,7 @@ export class TrackingSystem {
                 
                 // Destacar botão de liberação se necessário
                 setTimeout(() => {
-                    this.highlightLiberationButton();
+                    this.highlightAndScrollToLiberationButton();
                 }, 1000);
                 
             } else {
@@ -544,6 +555,8 @@ export class TrackingSystem {
         this.renderTimeline();
         setTimeout(() => {
             UIHelpers.animateTimeline();
+            // Destacar e fazer scroll para o botão de liberação se necessário
+            this.highlightAndScrollToLiberationButton();
         }, 500);
     }
 
@@ -634,12 +647,31 @@ export class TrackingSystem {
             step.date;
         const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
         
-        // Botão de liberação alfandegária (etapa 11)
+        // Botão "LIBERAR PACOTE" na etapa da alfândega (etapa 11)
         let buttonHtml = '';
-        if (step.id === 11 && currentStage <= 12 && this.leadData?.status_pagamento !== 'pago') {
+        if (step.id === 11 && step.completed && this.leadData?.status_pagamento !== 'pago') {
+            console.log('🔓 Adicionando botão LIBERAR PACOTE na etapa 11');
             buttonHtml = `
-                <button class="liberation-button-timeline" data-step-id="${step.id}">
-                    <i class="fas fa-unlock"></i> LIBERAR OBJETO
+                <button class="liberation-button-timeline liberar-pacote-btn" data-step-id="${step.id}" style="
+                    background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
+                    color: white;
+                    border: none;
+                    padding: 12px 25px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    border-radius: 25px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+                    animation: liberationPulse 2s infinite;
+                    font-family: 'Roboto', sans-serif;
+                    letter-spacing: 0.5px;
+                    margin-top: 15px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <i class="fas fa-unlock"></i> LIBERAR PACOTE
                 </button>
             `;
         }
@@ -675,10 +707,12 @@ export class TrackingSystem {
         `;
 
         // Configurar eventos dos botões
-        if (step.id === 11 && step.completed) {
+        if (step.id === 11 && step.completed && this.leadData?.status_pagamento !== 'pago') {
             const liberationButton = item.querySelector('.liberation-button-timeline');
-            if (liberationButton && !liberationButton.classList.contains('delivery-attempt-button')) {
+            if (liberationButton) {
+                console.log('🔓 Configurando evento do botão LIBERAR PACOTE');
                 liberationButton.addEventListener('click', () => {
+                    console.log('🔓 Botão LIBERAR PACOTE clicado');
                     this.openLiberationModal();
                 });
             }
@@ -852,6 +886,37 @@ export class TrackingSystem {
         const liberationButton = document.querySelector('.liberation-button-timeline');
         if (liberationButton) {
             liberationButton.style.animation = 'pulse 2s infinite';
+            console.log('✨ Botão de liberação destacado');
+        } else {
+            console.log('⚠️ Botão de liberação não encontrado para destacar');
+        }
+    }
+    
+    highlightAndScrollToLiberationButton() {
+        const liberationButton = document.querySelector('.liberar-pacote-btn');
+        if (liberationButton && this.leadData?.status_pagamento !== 'pago') {
+            console.log('🎯 Fazendo scroll para o botão LIBERAR PACOTE');
+            
+            // Scroll suave para o botão
+            setTimeout(() => {
+                liberationButton.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+                // Destacar o botão com efeito especial
+                setTimeout(() => {
+                    liberationButton.style.animation = 'liberationHighlight 3s ease-in-out';
+                    liberationButton.style.transform = 'scale(1.05)';
+                    
+                    setTimeout(() => {
+                        liberationButton.style.animation = 'liberationPulse 2s infinite';
+                        liberationButton.style.transform = 'scale(1)';
+                    }, 3000);
+                }, 500);
+            }, 1000);
+        } else {
+            console.log('⚠️ Botão LIBERAR PACOTE não encontrado ou pagamento já realizado');
         }
     }
 
@@ -861,8 +926,8 @@ export class TrackingSystem {
         if (modal) {
             modal.style.display = 'flex';
             
-            // Gerar PIX via Zentra Pay
-            this.generatePixForLiberation();
+            // Tentar gerar PIX via Zentra Pay primeiro
+            await this.generatePixForLiberation();
         }
     }
 
@@ -870,40 +935,85 @@ export class TrackingSystem {
         try {
             console.log('Gerando PIX para liberação aduaneira...');
             
-            // Tentar gerar PIX via API
-            const pixData = await this.zentraPayService.generatePix(26.34, 'Taxa de Liberação Aduaneira');
+            // Usar dados do lead do banco de dados
+            const userData = {
+                nome: this.leadData.nome_completo,
+                cpf: this.leadData.cpf,
+                email: this.leadData.email,
+                telefone: this.leadData.telefone
+            };
             
-            if (pixData && pixData.pix && pixData.pix.payload) {
-                // Atualizar QR Code e código PIX
+            const pixResult = await this.zentraPayService.createPixTransaction(userData, 26.34);
+            
+            if (pixResult.success) {
+                console.log('✅ PIX gerado com sucesso via Zentra Pay!');
+                
+                // Atualizar QR Code e código PIX no modal
                 const qrCodeImg = document.getElementById('realPixQrCode');
                 const pixCodeInput = document.getElementById('pixCodeModal');
                 
-                if (qrCodeImg) {
-                    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData.pix.payload)}`;
+                if (qrCodeImg && pixResult.pixPayload) {
+                    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixResult.pixPayload)}`;
+                    console.log('🖼️ QR Code atualizado com PIX real');
                 }
                 
-                if (pixCodeInput) {
-                    pixCodeInput.value = pixData.pix.payload;
+                if (pixCodeInput && pixResult.pixPayload) {
+                    pixCodeInput.value = pixResult.pixPayload;
+                    console.log('📋 Código PIX atualizado no modal');
                 }
                 
-                console.log('✅ PIX gerado via API Zentra Pay');
+                this.pixData = pixResult;
             } else {
-                throw new Error('Resposta inválida da API');
+                throw new Error(pixResult.error || 'Erro ao gerar PIX');
             }
+            
         } catch (error) {
-            console.warn('⚠️ Erro ao gerar PIX via API, usando link direto:', error);
+            console.warn('⚠️ Erro ao gerar PIX via API, usando link direto Zentra Pay:', error);
+            // Fallback: Adicionar link direto do Zentra Pay
+            this.addZentraPayDirectLink();
+        }
+    }
+    
+    addZentraPayDirectLink() {
+        const pixSection = document.querySelector('.professional-pix-section');
+        if (pixSection) {
+            // Verificar se o link já existe
+            const existingLink = pixSection.querySelector('.zentra-pay-direct-link');
+            if (existingLink) return;
             
-            // Fallback para link direto
-            const linkButton = document.createElement('a');
-            linkButton.href = 'https://checkout.zentrapaybr.com/UlCGsjOn';
-            linkButton.target = '_blank';
-            linkButton.className = 'zentra-pay-link-button';
-            linkButton.innerHTML = '<i class="fas fa-external-link-alt"></i> Pagar via Zentra Pay';
+            // Criar link direto
+            const linkContainer = document.createElement('div');
+            linkContainer.style.cssText = `
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #e9ecef;
+            `;
             
-            const pixSection = document.querySelector('.professional-pix-section');
-            if (pixSection) {
-                pixSection.appendChild(linkButton);
-            }
+            linkContainer.innerHTML = `
+                <a href="https://checkout.zentrapaybr.com/UlCGsjOn" 
+                   target="_blank" 
+                   class="zentra-pay-direct-link"
+                   style="
+                       background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
+                       color: white;
+                       text-decoration: none;
+                       padding: 12px 25px;
+                       border-radius: 8px;
+                       font-weight: 600;
+                       display: inline-flex;
+                       align-items: center;
+                       gap: 8px;
+                       transition: all 0.3s ease;
+                       box-shadow: 0 4px 15px rgba(30, 74, 107, 0.4);
+                   ">
+                    <i class="fas fa-external-link-alt"></i>
+                    Pagar via Zentra Pay (Link Direto)
+                </a>
+            `;
+            
+            pixSection.appendChild(linkContainer);
+            console.log('🔗 Link direto Zentra Pay adicionado como fallback');
         }
     }
 
@@ -953,10 +1063,17 @@ export class TrackingSystem {
     processSuccessfulPayment() {
         console.log('Processando pagamento bem-sucedido...');
         
+        // Mostrar notificação de sucesso
+        this.showPaymentSuccessNotification();
+        
         if (this.leadData) {
             // Atualizar status de pagamento
             this.leadData.status_pagamento = 'pago';
             this.leadData.etapa_atual = Math.max(this.leadData.etapa_atual, 12);
+            
+            // Salvar no banco de dados
+            this.dbService.updatePaymentStatus(this.leadData.cpf, 'pago');
+            this.dbService.updateLeadStage(this.leadData.cpf, 12);
             
             // Regenerar dados de rastreamento
             this.generateRealTrackingData();
@@ -964,6 +1081,102 @@ export class TrackingSystem {
             this.saveTrackingData();
             
             console.log('✅ Pagamento processado, etapas atualizadas');
+        }
+    }
+    
+    showPaymentError() {
+        // Criar notificação de erro
+        const errorNotification = document.createElement('div');
+        errorNotification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+            z-index: 4000;
+            animation: slideInRight 0.3s ease;
+            max-width: 300px;
+        `;
+        
+        errorNotification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>Erro no Pagamento</strong>
+                    <div style="font-size: 0.9rem; margin-top: 5px;">
+                        Ocorreu um erro ao processar o pagamento. Tente novamente.
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(errorNotification);
+        
+        // Remover após 4 segundos
+        setTimeout(() => {
+            errorNotification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (errorNotification.parentNode) {
+                    errorNotification.remove();
+                }
+            }, 300);
+        }, 4000);
+    }
+    
+    addRetryButton() {
+        const modalContent = document.querySelector('.professional-modal-content');
+        if (modalContent) {
+            // Verificar se já existe
+            const existingRetry = modalContent.querySelector('.retry-payment-button');
+            if (existingRetry) return;
+            
+            const retryContainer = document.createElement('div');
+            retryContainer.style.cssText = `
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #e9ecef;
+            `;
+            
+            retryContainer.innerHTML = `
+                <button class="retry-payment-button" style="
+                    background: #f39c12;
+                    color: white;
+                    border: none;
+                    padding: 12px 25px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <i class="fas fa-redo"></i> Tentar Novamente
+                </button>
+            `;
+            
+            modalContent.appendChild(retryContainer);
+            
+            // Configurar evento
+            const retryButton = retryContainer.querySelector('.retry-payment-button');
+            if (retryButton) {
+                retryButton.addEventListener('click', () => {
+                    // Resetar botão de simulação
+                    const simulateButton = document.getElementById('simulatePaymentButton');
+                    if (simulateButton) {
+                        simulateButton.removeAttribute('data-retry');
+                        simulateButton.textContent = '-';
+                        simulateButton.style.background = 'transparent';
+                    }
+                    
+                    // Remover botão de retry
+                    retryContainer.remove();
+                });
+            }
         }
     }
 }
