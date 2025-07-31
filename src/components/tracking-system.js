@@ -304,7 +304,7 @@ export class TrackingSystem {
                 
                 const orderDetails = document.getElementById('orderDetails');
                 if (orderDetails) {
-                if (orderDetails) this.scrollToElement(orderDetails, 100);
+                    this.scrollToElement(orderDetails, 100);
                 }
                 
                 // Destacar botão de liberação se necessário
@@ -434,19 +434,7 @@ export class TrackingSystem {
             14: 'Pedido em trânsito entrega',
             15: 'Pedido em rota de entrega',
             16: 'Tentativa entrega'
-            17: "1ª Tentativa de entrega - Taxa de reenvio necessária",
-            18: "Reagendamento da entrega",
-            19: "Pedido em trânsito para nova entrega",
-            20: "Pedido em rota de entrega",
-            21: "2ª Tentativa de entrega - Taxa de reenvio necessária",
-            22: "Reagendamento da entrega",
-            23: "Pedido em trânsito para nova entrega", 
-            24: "Pedido em rota de entrega",
-            25: "3ª Tentativa de entrega - Taxa de reenvio necessária",
-            26: "Reagendamento da entrega",
-            27: "Pedido em trânsito para nova entrega",
-            28: "Pedido em rota de entrega",
-            29: "4ª Tentativa de entrega - Taxa de reenvio necessária"
+        };
     }
 
     displayTrackingResults() {
@@ -500,8 +488,6 @@ export class TrackingSystem {
 
         timeline.innerHTML = '';
         const currentStage = this.leadData ? parseInt(this.leadData.etapa_atual) : 11;
-        // Mostrar apenas etapas até a etapa atual
-        const currentStage = this.leadData ? this.leadData.etapa_atual : 11;
         
         this.trackingData.steps.forEach((step, index) => {
             // Mostrar apenas etapas até a etapa atual
@@ -546,6 +532,7 @@ export class TrackingSystem {
                 </button>
             `;
         }
+        
         // Botão para Alfândega de Importação (etapa 11)
         if (step.id === 11 && step.completed) {
             const timeStr = step.date instanceof Date ?
@@ -2657,6 +2644,32 @@ export class TrackingSystem {
             }, 300);
         }
     }
+
+    scrollToElement(element, offset = 0) {
+        if (element) {
+            const elementPosition = element.offsetTop - offset;
+            window.scrollTo({
+                top: elementPosition,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    showError(message) {
+        console.error('Error:', message);
+        // You can implement a proper error display here
+        alert(message);
+    }
+
+    showLoadingNotification() {
+        // Implementation for showing loading notification
+        console.log('Loading...');
+    }
+
+    closeLoadingNotification() {
+        // Implementation for closing loading notification
+        console.log('Loading closed');
+    }
 }
 
 /**
@@ -2824,7 +2837,7 @@ class DeliveryFlowSystem {
             </div>
         `;
 
-        // Configurar eventos dos botões de liberação alfandegária
+        // Configurar eventos dos botões de reagendamento
         if (hasPaymentButton && isDeliveryAttempt) {
             const retryButton = item.querySelector('.delivery-retry-btn');
             if (retryButton) {
