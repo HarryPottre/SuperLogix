@@ -434,7 +434,19 @@ export class TrackingSystem {
             14: 'Pedido em trânsito entrega',
             15: 'Pedido em rota de entrega',
             16: 'Tentativa entrega'
-        };
+            17: "1ª Tentativa de entrega - Taxa de reenvio necessária",
+            18: "Reagendamento da entrega",
+            19: "Pedido em trânsito para nova entrega",
+            20: "Pedido em rota de entrega",
+            21: "2ª Tentativa de entrega - Taxa de reenvio necessária",
+            22: "Reagendamento da entrega",
+            23: "Pedido em trânsito para nova entrega", 
+            24: "Pedido em rota de entrega",
+            25: "3ª Tentativa de entrega - Taxa de reenvio necessária",
+            26: "Reagendamento da entrega",
+            27: "Pedido em trânsito para nova entrega",
+            28: "Pedido em rota de entrega",
+            29: "4ª Tentativa de entrega - Taxa de reenvio necessária"
     }
 
     displayTrackingResults() {
