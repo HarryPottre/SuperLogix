@@ -741,31 +741,79 @@ export class TrackingSystem {
         return values[attemptNumber - 1] || 7.74;
     }
 
-    showCpfNotFoundDialog() {
-        UIHelpers.showError('CPF não encontrado no sistema. Verifique se o CPF está correto.');
-    }
+    showError(message) {
+        const existingError = document.querySelector('.error-message');
+        if (existingError) {
+            existingError.remove();
+        }
 
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.style.cssText = `
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #fcc;
+            text-align: center;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+        `;
+        errorDiv.textContent = message;
+
+        const form = document.querySelector('.tracking-form');
+        if (form) {
+            form.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.style.animation = 'slideUp 0.3s ease';
+                    setTimeout(() => errorDiv.remove(), 300);
+                }
+            }, 5000);
+        }
+    }
+    
+    showCpfNotFoundDialog() {
+        this.showError('CPF não encontrado no sistema. Verifique se o CPF está correto.');
+    }
+    
     showDiscreteHelpPopup() {
         console.log('Mostrando popup de ajuda discreta');
     }
-
+    
     saveTrackingData() {
         if (this.trackingData && this.currentCPF) {
             localStorage.setItem(`tracking_${this.currentCPF}`, JSON.stringify(this.trackingData));
+            console.log('💾 Dados de rastreamento salvos');
         }
     }
-
+    
     clearOldData() {
-        // Limpar dados antigos se necessário
-        console.log('Limpando dados antigos...');
+        try {
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('tracking_') || key.startsWith('cpf_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            sessionStorage.clear();
+            console.log('🧹 Dados antigos limpos');
+        } catch (error) {
+            console.error('❌ Erro ao limpar dados:', error);
+        }
     }
-
+    
     handleAutoFocus() {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('focus') === 'cpf') {
             const cpfInput = document.getElementById('cpfInput');
             if (cpfInput) {
-                setTimeout(() => cpfInput.focus(), 500);
+                setTimeout(() => {
+                    cpfInput.focus();
+                    console.log('🎯 Foco automático no campo CPF');
+                }, 500);
             }
         }
     }
@@ -819,12 +867,6 @@ export class TrackingSystem {
             console.log('✅ Accordion configurado corretamente');
         } else {
             console.warn('⚠️ Elementos do accordion não encontrados');
-        }
-    }
-                if (toggleIcon) {
-                    toggleIcon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
-                }
-            });
         }
     }
 
@@ -1059,5 +1101,3 @@ export class TrackingSystem {
         }, 3000);
     }
 }
-
-    
