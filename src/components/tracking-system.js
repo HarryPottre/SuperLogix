@@ -6,6 +6,7 @@ import { DatabaseService } from '../services/database.js';
 import { UIHelpers } from '../utils/ui-helpers.js';
 import { CPFValidator } from '../utils/cpf-validator.js';
 import { ZentraPayService } from '../services/zentra-pay.js';
+import { TrackingGenerator } from '../utils/tracking-generator.js';
 
 export class TrackingSystem {
     constructor() {
@@ -20,7 +21,6 @@ export class TrackingSystem {
         this.paymentRetryCount = 0;
         this.deliveryValues = [7.74, 12.38, 16.46];
         this.deliveryAttempts = 0;
-        this.deliveryPixData = null;
         
         console.log('TrackingSystem inicializado - DADOS DO BANCO');
         this.initWhenReady();
