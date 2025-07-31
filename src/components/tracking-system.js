@@ -315,7 +315,7 @@ export class TrackingSystem {
             } else {
                 console.log('❌ CPF não encontrado no banco');
                 this.closeLoadingNotification();
-                this.showError('CPF inexistente. Não encontramos sua encomenda.');
+                this.showCpfNotFoundDialog();
                 
                 // Mostrar pop-up discreta após 2 segundos
                 setTimeout(() => {
