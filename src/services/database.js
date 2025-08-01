@@ -26,7 +26,7 @@ export class DatabaseService {
     }
 
     // Método para compatibilidade
-        try {
+    async getAllLeads() {
         return await this.supabaseService.getAllLeads();
     }
 
