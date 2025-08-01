@@ -1,11 +1,13 @@
 /**
  * Página de Obrigado - Pós-venda
  */
+import { DatabaseService } from '../services/database.js';
 import { VegaDataProcessor } from '../utils/vega-data.js';
 import { CPFValidator } from '../utils/cpf-validator.js';
 
 class ObrigadoPage {
     constructor() {
+        this.dbService = new DatabaseService();
         this.vegaData = null;
         this.init();
     }
@@ -64,21 +66,21 @@ class ObrigadoPage {
 
     async saveLeadData() {
         try {
-            // Save to localStorage instead of database
-            const leads = JSON.parse(localStorage.getItem('leads') || '[]');
-            const existingLeadIndex = leads.findIndex(lead => lead.cpf === this.vegaData.cpf);
+            // Verificar se lead já existe no banco
+            const existingLead = await this.dbService.getLeadByCPF(this.vegaData.cpf);
             
-            if (existingLeadIndex !== -1) {
-                console.log('📝 Lead já existe, atualizando dados');
-                leads[existingLeadIndex] = { ...leads[existingLeadIndex], ...this.vegaData };
+            if (existingLead.success && existingLead.data) {
+                console.log('📝 Lead já existe no banco de dados');
             } else {
-                console.log('📝 Criando novo lead no localStorage');
-                this.vegaData.id = Date.now().toString();
-                leads.push(this.vegaData);
+                console.log('📝 Criando novo lead no banco de dados');
+                const result = await this.dbService.createLead(this.vegaData);
+                
+                if (result.success) {
+                    console.log('✅ Lead salvo com sucesso no banco de dados');
+                } else {
+                    console.warn('⚠️ Erro ao salvar lead:', result.error);
+                }
             }
-            
-            localStorage.setItem('leads', JSON.stringify(leads));
-            console.log('✅ Lead salvo com sucesso no localStorage');
         } catch (error) {
             console.error('❌ Erro ao salvar dados do lead:', error);
         }
