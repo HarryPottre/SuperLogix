@@ -33,15 +33,29 @@ export function parseRawBulkData(rawData) {
     console.log(`📋 Total de linhas para processar: ${lines.length}`);
     
     // Obter leads existentes no banco
-    const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-    const existingKeys = new Set(existingLeads.map(lead => {
-        const cleanCPF = lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : '';
-        const cleanName = (lead.nome_completo || '').toLowerCase().trim();
-        return `${cleanName}_${cleanCPF}`;
-    }));
+    let existingKeys = new Set();
     
-    console.log(`🗄️ Leads existentes no banco: ${existingLeads.length}`);
-
+    // Buscar leads existentes do Supabase se disponível
+    if (window.adminPanel && window.adminPanel.dbService) {
+        try {
+            const supabaseResult = await window.adminPanel.dbService.getData();
+            const supabaseLeads = supabaseResult.success ? supabaseResult.data : [];
+            
+            existingKeys = new Set(supabaseLeads.map(lead => {
+                const cleanCPF = lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : '';
+                const cleanName = (lead.nome_completo || '').toLowerCase().trim();
+                return `${cleanName}_${cleanCPF}`;
+            }));
+            
+            console.log(`🗄️ Leads existentes no Supabase: ${supabaseLeads.length}`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar leads do Supabase para verificação de duplicatas:', error);
+            // Continuar sem verificação de duplicatas se Supabase falhar
+        }
+    } else {
+        console.warn('⚠️ DatabaseService não disponível, pulando verificação de duplicatas');
+    }
+    
     for (let i = 0; i < lines.length; i++) {
         try {
             const line = lines[i].trim();
@@ -350,6 +364,18 @@ export function displayBulkPreview(parsedData, containerId = 'bulkPreviewContain
 export async function confirmBulkImport(bulkData, progressCallback) {
     console.log(`🚀 Iniciando importação de ${bulkData.length} leads...`);
 
+    // Verificar se temos acesso ao DatabaseService
+    if (!window.adminPanel || !window.adminPanel.dbService) {
+        console.error('❌ DatabaseService não disponível para importação');
+        return {
+            success: 0,
+            errors: bulkData.length,
+            total: bulkData.length
+        };
+    }
+    
+    const dbService = window.adminPanel.dbService;
+
     const results = {
         success: 0,
         errors: 0,
@@ -361,21 +387,18 @@ export async function confirmBulkImport(bulkData, progressCallback) {
         const lead = bulkData[i];
         
         try {
-            // Adicionar timestamps
-            lead.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-            lead.created_at = new Date().toISOString();
-            lead.updated_at = new Date().toISOString();
-
-            // Salvar no localStorage
-            const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-            existingLeads.push(lead);
-            localStorage.setItem('leads', JSON.stringify(existingLeads));
+            // Salvar diretamente no Supabase via DatabaseService
+            const result = await dbService.createLead(lead);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Erro ao salvar no Supabase');
+            }
 
             results.success++;
-            console.log(`✅ Lead ${i + 1}/${bulkData.length} importado: ${lead.nome_completo}`);
+            console.log(`✅ Lead ${i + 1}/${bulkData.length} salvo no Supabase: ${lead.nome_completo}`);
 
         } catch (error) {
-            console.error(`❌ Erro ao importar lead ${i + 1}:`, error);
+            console.error(`❌ Erro ao salvar lead ${i + 1} no Supabase:`, error);
             results.errors++;
         }
 

@@ -14,7 +14,15 @@ export class DatabaseService {
     }
 
     async createLead(leadData) {
-        return await this.supabaseService.createLead(leadData);
+        const result = await this.supabaseService.createLead(leadData);
+        
+        // Se falhar no Supabase, não usar localStorage como fallback para bulk import
+        if (!result.success) {
+            console.error('❌ Falha ao salvar no Supabase:', result.error);
+            return result; // Retornar erro sem fallback
+        }
+        
+        return result;
     }
 
     async updatePaymentStatus(cpf, status) {

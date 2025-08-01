@@ -66,23 +66,23 @@ class ObrigadoPage {
 
     async saveLeadData() {
         try {
-            // Verificar se lead já existe no banco
+            // Verificar se lead já existe no Supabase
             const existingLead = await this.dbService.getLeadByCPF(this.vegaData.cpf);
             
             if (existingLead.success && existingLead.data) {
-                console.log('📝 Lead já existe no banco de dados');
+                console.log('📝 Lead já existe no Supabase');
             } else {
-                console.log('📝 Criando novo lead no banco de dados');
+                console.log('📝 Criando novo lead no Supabase');
                 const result = await this.dbService.createLead(this.vegaData);
                 
                 if (result.success) {
-                    console.log('✅ Lead salvo com sucesso no banco de dados');
+                    console.log('✅ Lead salvo com sucesso no Supabase');
                 } else {
-                    console.warn('⚠️ Erro ao salvar lead:', result.error);
+                    console.error('❌ Erro ao salvar lead no Supabase:', result.error);
                 }
             }
         } catch (error) {
-            console.error('❌ Erro ao salvar dados do lead:', error);
+            console.error('❌ Erro ao salvar dados do lead no Supabase:', error);
         }
     }
 
