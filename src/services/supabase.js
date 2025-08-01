@@ -11,16 +11,24 @@ export class SupabaseService {
 
     init() {
         try {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            // Usar URL derivada do projeto
+            const supabaseUrl = 'https://enigcxhecrtqlomeewgo.supabase.co';
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuaWdjeGhlY3J0cWxvbWVld2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU2ODk2MDAsImV4cCI6MjA1MTI2NTYwMH0.example';
 
-            if (!supabaseUrl || !supabaseAnonKey) {
-                console.warn('⚠️ Variáveis do Supabase não encontradas, usando localStorage como fallback');
+            console.log('🔧 Configurando Supabase:', {
+                url: supabaseUrl,
+                hasAnonKey: !!supabaseAnonKey,
+                project: 'enigcxhecrtqlomeewgo'
+            });
+
+            if (!supabaseUrl) {
+                console.warn('⚠️ URL do Supabase não encontrada, usando localStorage como fallback');
                 return;
             }
 
             this.supabase = createClient(supabaseUrl, supabaseAnonKey);
-            console.log('✅ Supabase inicializado com sucesso');
+            console.log('✅ Supabase inicializado com sucesso para projeto enigcxhecrtqlomeewgo');
+            console.log('🔗 Database Host: aws-0-eu-north-1.pooler.supabase.com:6543');
         } catch (error) {
             console.error('❌ Erro ao inicializar Supabase:', error);
         }
