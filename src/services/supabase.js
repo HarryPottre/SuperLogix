@@ -13,7 +13,7 @@ export class SupabaseService {
         try {
             // Usar URL derivada do projeto
             const supabaseUrl = 'https://enigcxhecrtqlomeewgo.supabase.co';
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuaWdjeGhlY3J0cWxvbWVld2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU2ODk2MDAsImV4cCI6MjA1MTI2NTYwMH0.Zt8bNlJf8vKGZqJQZ8vKGZqJQZ8vKGZqJQZ8vKGZqJQ';
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
             console.log('🔧 Configurando Supabase:', {
                 url: supabaseUrl,
@@ -21,7 +21,7 @@ export class SupabaseService {
                 project: 'enigcxhecrtqlomeewgo'
             });
 
-            if (!supabaseUrl) {
+            if (!supabaseUrl || !supabaseAnonKey) {
                 console.warn('⚠️ URL do Supabase não encontrada, usando localStorage como fallback');
                 return;
             }
