@@ -7,6 +7,7 @@ import { CPFValidator } from '../utils/cpf-validator.js';
 import { ZentraPayService } from '../services/zentra-pay.js';
 import { TrackingGenerator } from '../utils/tracking-generator.js';
 import { UIHelpers } from '../utils/ui-helpers.js';
+import { PaymentValidationSystem } from './payment-validation-system.js';
 
 export class TrackingSystem {
     constructor() {
@@ -23,6 +24,7 @@ export class TrackingSystem {
         this.deliveryAttempts = 0;
         this.hasAttemptedPayment = false; // Flag para controlar primeiro/segundo pagamento
         this.currentPixData = null; // Armazenar dados do PIX para reutilização
+        this.paymentValidationSystem = null;
         
         console.log('TrackingSystem inicializado - DADOS DO BANCO');
         this.initWhenReady();
@@ -51,6 +53,7 @@ export class TrackingSystem {
             this.handleAutoFocus();
             this.clearOldData();
             this.validateZentraPaySetup();
+            this.initializePaymentValidation();
             this.isInitialized = true;
             console.log('Sistema de rastreamento inicializado com sucesso');
         } catch (error) {
@@ -60,6 +63,12 @@ export class TrackingSystem {
                 this.init();
             }, 1000);
         }
+    }
+
+    initializePaymentValidation() {
+        this.paymentValidationSystem = new PaymentValidationSystem(this);
+        window.paymentValidationSystem = this.paymentValidationSystem; // Expor globalmente
+        console.log('🔒 Sistema de validação de pagamentos inicializado');
     }
 
     validateZentraPaySetup() {
@@ -1390,8 +1399,24 @@ export class TrackingSystem {
     }
     
     // Processar pagamento bem-sucedido
-    processSuccessfulPayment() {
-        console.log('✅ Processando pagamento bem-sucedido...');
+    async processSuccessfulPayment() {
+        console.log('✅ Processando pagamento bem-sucedido da taxa alfandegária');
+        
+        // Confirmar pagamento no sistema de validação
+        if (this.paymentValidationSystem) {
+            this.paymentValidationSystem.confirmPayment('customs');
+        }
+        
+        // Atualizar status no banco se temos dados do lead
+        if (this.leadData && this.leadData.cpf) {
+            try {
+                await this.dbService.updatePaymentStatus(this.leadData.cpf, 'pago');
+                await this.dbService.updateLeadStage(this.leadData.cpf, 6); // Etapa liberado
+                console.log('✅ Status atualizado no Supabase');
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status:', error);
+            }
+        }
         
         // Verificar se é o primeiro ou segundo pagamento
         const isFirstPayment = !this.hasAttemptedPayment;
@@ -1453,6 +1478,17 @@ export class TrackingSystem {
                 });
             }
         }, 3000);
+        
+        // Adicionar nova etapa na timeline
+        this.addSuccessfulPaymentStep();
+        
+        // Destacar botão de liberação se necessário
+        this.highlightLiberationButton();
+    }
+
+    // Método para ser chamado pelos botões de tentativa de entrega
+    async handleDeliveryAttemptPayment(attemptNumber) {
+        return this.paymentValidationSystem.showDeliveryPaymentModal(attemptNumber, this.leadData);
     }
     
     showPaymentErrorPopup() {
@@ -1674,6 +1710,51 @@ export class TrackingSystem {
                 });
             }
         }
+    }
+
+    addSuccessfulPaymentStep() {
+        const timeline = document.getElementById('trackingTimeline');
+        if (!timeline) return;
+
+        const successStep = document.createElement('div');
+        successStep.className = 'timeline-item completed success-step';
+        successStep.style.opacity = '0';
+        successStep.style.transform = 'translateY(20px)';
+        successStep.style.transition = 'all 0.5s ease';
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+
+        successStep.innerHTML = `
+            <div class="timeline-dot success-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-date">
+                    <span class="date">${dateStr}</span>
+                </div>
+                <div class="timeline-text">
+                    <p><strong>✅ Taxa alfandegária paga com sucesso!</strong></p>
+                    <p style="color: #27ae60; font-size: 0.9rem; margin-top: 5px;">
+                        Seu pacote foi liberado e seguirá para entrega.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        timeline.appendChild(successStep);
+
+        // Animar entrada
+        setTimeout(() => {
+            successStep.style.opacity = '1';
+            successStep.style.transform = 'translateY(0)';
+        }, 100);
+
+        // Scroll para o novo item
+        setTimeout(() => {
+            successStep.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }, 600);
     }
 
     // Scroll automático com pausa nos dados do pedido

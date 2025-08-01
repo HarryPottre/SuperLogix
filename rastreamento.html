@@ -505,9 +505,24 @@
                         </div>
                     </div>
                     
-                    <!-- Container de Simulação Discreto -->
-                    <div id="simulador-pagamento" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
-                        <button onclick="confirmarSimulacaoPagamento()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
+                    <!-- Botão de Simulação para Testes -->
+                    <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                        <button id="simulatePaymentButton" style="
+                            background: transparent;
+                            color: #666;
+                            border: 1px solid #ddd;
+                            padding: 6px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            transition: all 0.3s ease;
+                            opacity: 0.7;
+                            font-size: 12px;
+                            min-width: 30px;
+                            height: 28px;
+                        ">
+                            -
+                        </button>
                     </div>
                 </div>
             </div>
@@ -566,16 +581,6 @@
                         </div>
                     </div>
                     
-                    <!-- Container de Simulação Discreto -->
-                    <div id="simulador-pagamento-delivery" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
-                        <button onclick="confirmarSimulacaoEntrega()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
-                    </div>
-                </div>
-                
-                <!-- Container de Simulação Discreto -->
-                <div id="simulador-pagamento-delivery" style="border-top: 1px solid #ddd; padding: 12px 0 0 0; margin-top: 16px; text-align: center;">
-                    <button onclick="confirmarSimulacaoEntrega()" style="font-size: 14px; color: #999; background: none; border: none; cursor: pointer;">-</button>
-                </div>
             </div>
         </div>
     </div>
@@ -697,55 +702,50 @@
     </script>
 
     <script>
-        // Função de simulação de pagamento da taxa alfandegária
-        function confirmarSimulacaoPagamento() {
-            console.log('🧪 Simulação: Pagamento da taxa alfandegária confirmado');
-            
-            // Fechar modal imediatamente
+        // Configurar eventos do modal de liberação
+        document.addEventListener('DOMContentLoaded', function() {
+            const simulateButton = document.getElementById('simulatePaymentButton');
+            const closeButton = document.getElementById('closeModal');
             const modal = document.getElementById('liberationModal');
+            
+            if (simulateButton) {
+                simulateButton.addEventListener('click', function() {
+                    // Simular erro na primeira tentativa
+                    if (!this.hasAttribute('data-retry')) {
+                        this.setAttribute('data-retry', 'true');
+                        alert('Ocorreu um erro ao tentar processar o pagamento');
+                        this.textContent = '--';
+                        return;
+                    }
+                    
+                    // Segunda tentativa - sucesso
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                    
+                    // Processar pagamento com sucesso
+                    if (window.trackingSystemInstance) {
+                        window.trackingSystemInstance.processSuccessfulPayment();
+                    }
+                });
+            }
+            
+            if (closeButton) {
+                closeButton.addEventListener('click', function() {
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
+            
             if (modal) {
-                modal.style.display = 'none';
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
             }
-            
-            // Processar pagamento com sucesso
-            if (window.trackingSystemInstance) {
-                window.trackingSystemInstance.processSuccessfulPayment();
-            }
-        }
-        
-        // Função de simulação de pagamento da tentativa de entrega
-        function confirmarSimulacaoEntrega() {
-            console.log('🧪 Simulação: Pagamento da tentativa de entrega confirmado');
-            
-            // Fechar modal imediatamente
-            const modal = document.getElementById('deliveryModal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-            
-            // Processar reenvio com sucesso
-            if (window.trackingSystemInstance && window.trackingSystemInstance.postPaymentSystem) {
-                const attemptNumber = 1; // Simular primeira tentativa
-                window.trackingSystemInstance.postPaymentSystem.processDeliveryRetry(attemptNumber);
-            }
-        }
-        
-        // Função de simulação de pagamento da tentativa de entrega
-        function confirmarSimulacaoEntrega() {
-            console.log('🧪 Simulação: Pagamento da tentativa de entrega confirmado');
-            
-            // Fechar modal imediatamente
-            const modal = document.getElementById('deliveryModal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-            
-            // Processar reenvio com sucesso
-            if (window.trackingSystemInstance && window.trackingSystemInstance.postPaymentSystem) {
-                const attemptNumber = 1; // Simular primeira tentativa
-                window.trackingSystemInstance.postPaymentSystem.processDeliveryRetry(attemptNumber);
-            }
-        }
+        });
     </script>
 
     <script>
