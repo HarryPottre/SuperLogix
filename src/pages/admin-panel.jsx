@@ -1890,7 +1890,7 @@ class AdminPanel {
     }
 
     // FUNÇÃO COMPLETAMENTE REESCRITA - Parse de dados brutos
-    async parseRawBulkData(rawData) {
+    parseRawBulkData(rawData) {
         console.log('📊 Iniciando parse de dados brutos...');
         
         try {
@@ -1913,18 +1913,11 @@ class AdminPanel {
 
             // Obter leads existentes no banco
             const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-            
-            // Buscar leads existentes do Supabase
-            const supabaseResult = await this.dbService.getData();
-            const supabaseLeads = supabaseResult.success ? supabaseResult.data : [];
-            
-            const existingKeys = new Set(supabaseLeads.map(lead => {
-                const cleanCPF = lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : '';
-                const cleanName = (lead.nome_completo || '').toLowerCase().trim();
-                return `${cleanName}_${cleanCPF}`;
-            }));
-            
-            console.log(`🗄️ Leads existentes no Supabase: ${supabaseLeads.length}`);
+            const existingCPFs = new Set(existingLeads.map(lead => 
+                lead.cpf ? lead.cpf.replace(/[^\d]/g, '') : ''
+            ));
+
+            console.log(`🗄️ CPFs existentes no banco: ${existingCPFs.size}`);
 
             for (let i = 0; i < lines.length; i++) {
                 const lineNumber = i + 1;
@@ -2044,9 +2037,7 @@ class AdminPanel {
                     }
 
                     // Verificar duplicatas no banco
-                    const cleanName = nomeCompleto.toLowerCase().trim();
-                    const duplicateKey = `${cleanName}_${cleanCPF}`;
-                    if (existingKeys.has(duplicateKey)) {
+                    if (existingCPFs.has(cleanCPF)) {
                         duplicates.push({
                             line: lineNumber,
                             cpf: cleanCPF,
@@ -2310,23 +2301,26 @@ class AdminPanel {
                 total: this.bulkImportData.length
             };
 
-            // Importar leads um por um
+            // Importar leads um por um (mantendo lógica original)
             for (let i = 0; i < this.bulkImportData.length; i++) {
                 const lead = this.bulkImportData[i];
                 
                 try {
-                    // Salvar diretamente no Supabase
-                    const result = await this.dbService.createLead(lead);
-                    
-                    if (!result.success) {
-                        throw new Error(result.error || 'Erro ao salvar no Supabase');
-                    }
+                    // Adicionar timestamps
+                    lead.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+                    lead.created_at = new Date().toISOString();
+                    lead.updated_at = new Date().toISOString();
+
+                    // Salvar no localStorage (mantendo lógica original)
+                    const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+                    existingLeads.push(lead);
+                    localStorage.setItem('leads', JSON.stringify(existingLeads));
 
                     results.success++;
-                    console.log(`✅ Lead ${i + 1}/${this.bulkImportData.length} salvo no Supabase: ${lead.nome_completo}`);
+                    console.log(`✅ Lead ${i + 1}/${this.bulkImportData.length} importado: ${lead.nome_completo}`);
 
                 } catch (error) {
-                    console.error(`❌ Erro ao salvar lead ${i + 1} no Supabase:`, error);
+                    console.error(`❌ Erro ao importar lead ${i + 1}:`, error);
                     results.errors++;
                     this.debug(`Erro ao importar dados em massa: ${error.message}`, 'confirmBulkImport', 'error');
                 }

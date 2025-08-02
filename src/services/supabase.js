@@ -68,22 +68,10 @@ export class SupabaseService {
 
     async createLead(leadData) {
         if (!this.supabase) {
-            console.error('❌ Supabase não inicializado para createLead');
-            return { success: false, error: 'Supabase não configurado' };
+            return this.createLeadInLocalStorage(leadData);
         }
 
         try {
-            // Adicionar timestamps se não existirem
-            if (!leadData.id) {
-                leadData.id = crypto.randomUUID();
-            }
-            if (!leadData.created_at) {
-                leadData.created_at = new Date().toISOString();
-            }
-            if (!leadData.updated_at) {
-                leadData.updated_at = new Date().toISOString();
-            }
-            
             console.log('📝 Criando lead no Supabase:', leadData);
 
             const { data, error } = await this.supabase
@@ -100,7 +88,8 @@ export class SupabaseService {
             return { success: true, data };
         } catch (error) {
             console.error('❌ Erro ao criar lead no Supabase:', error);
-            return { success: false, error: error.message };
+            // Fallback para localStorage
+            return this.createLeadInLocalStorage(leadData);
         }
     }
 
@@ -189,7 +178,8 @@ export class SupabaseService {
             return { success: true, data };
         } catch (error) {
             console.error('❌ Erro ao buscar leads no Supabase:', error);
-            return { success: false, error: error.message, data: [] };
+            // Fallback para localStorage
+            return this.getAllLeadsFromLocalStorage();
         }
     }
 
